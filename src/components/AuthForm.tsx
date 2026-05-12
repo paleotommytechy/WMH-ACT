@@ -50,24 +50,24 @@ export const AuthForm: React.FC = () => {
   };
 
   return (
-    <Layout>
+    <Layout hideNav>
       <div className="max-w-md mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white p-8 rounded-2xl shadow-xl shadow-violet-100 border border-violet-50"
+          className="bg-neutral-900/40 backdrop-blur-xl p-8 rounded-3xl shadow-2xl border border-white/10"
         >
           <div className="text-center mb-8">
             <img 
-              src="/logo.png" 
+              src="https://jnvpkyvtajegjuqnluzp.supabase.co/storage/v1/object/public/Wilson%20Mastery%20Hub%20images/logo-transparent.png" 
               alt="Wilson Mastery Hub" 
-              className="w-20 h-20 mx-auto mb-4 object-contain shadow-sm rounded-xl"
+              className="w-full max-w-[280px] h-auto mx-auto mb-6 object-contain"
               onError={(e) => e.currentTarget.style.display = 'none'}
             />
-            <h1 className="text-2xl font-bold text-neutral-900 mb-2">
+            <h1 className="text-2xl font-bold text-white mb-2">
               {isLogin ? 'Welcome Back' : 'Join the Hub'}
             </h1>
-            <p className="text-neutral-500 text-sm">
+            <p className="text-violet-200/60 text-sm">
               {isLogin ? 'Sign in to track your mastery progress' : 'Start your accountability journey today'}
             </p>
           </div>
@@ -75,17 +75,17 @@ export const AuthForm: React.FC = () => {
           <form onSubmit={handleSubmit} className="space-y-4">
             {!isLogin && (
               <div>
-                <label className="block text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-1.5 ml-1">
+                <label className="block text-xs font-semibold text-violet-300 uppercase tracking-wider mb-1.5 ml-1">
                   Full Name
                 </label>
                 <div className="relative">
-                  <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={18} />
+                  <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-violet-400" size={18} />
                   <input
                     type="text"
                     required
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none transition-all placeholder:text-neutral-300"
+                    className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none transition-all placeholder:text-neutral-600 text-white"
                     placeholder="John Doe"
                   />
                 </div>
@@ -93,41 +93,41 @@ export const AuthForm: React.FC = () => {
             )}
 
             <div>
-              <label className="block text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-1.5 ml-1">
+              <label className="block text-xs font-semibold text-violet-300 uppercase tracking-wider mb-1.5 ml-1">
                 Email Address
               </label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={18} />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-violet-400" size={18} />
                 <input
                   type="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none transition-all placeholder:text-neutral-300"
+                  className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none transition-all placeholder:text-neutral-600 text-white"
                   placeholder="name@example.com"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-1.5 ml-1">
+              <label className="block text-xs font-semibold text-violet-300 uppercase tracking-wider mb-1.5 ml-1">
                 Password
               </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={18} />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-violet-400" size={18} />
                 <input
                   type="password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none transition-all placeholder:text-neutral-300"
+                  className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none transition-all placeholder:text-neutral-600 text-white"
                   placeholder="••••••••"
                 />
               </div>
             </div>
 
             {error && (
-              <p className="text-red-500 text-xs bg-red-50 p-2 rounded-lg border border-red-100">
+              <p className="text-red-400 text-xs bg-red-500/10 p-2 rounded-lg border border-red-500/20">
                 {error}
               </p>
             )}
@@ -145,7 +145,7 @@ export const AuthForm: React.FC = () => {
           <div className="mt-6 text-center">
             <button
               onClick={() => setIsLogin(!isLogin)}
-              className="text-sm text-neutral-500 hover:text-violet-600 font-medium transition-colors"
+              className="text-sm text-violet-300 hover:text-white font-medium transition-colors"
             >
               {isLogin ? "Don't have an account? Sign Up" : 'Already have an account? Sign In'}
             </button>

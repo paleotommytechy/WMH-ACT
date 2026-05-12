@@ -87,43 +87,43 @@ export const AdminDashboard: React.FC = () => {
     }
   };
 
-  if (loading) return <div className="animate-pulse space-y-4">
-    <div className="h-20 bg-neutral-100 rounded-2xl" />
-    <div className="h-64 bg-neutral-100 rounded-2xl" />
+  if (loading) return <div className="space-y-4">
+    <div className="h-20 bg-white/5 rounded-2xl animate-pulse" />
+    <div className="h-64 bg-white/5 rounded-2xl animate-pulse" />
   </div>;
 
   return (
     <div className="space-y-8">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white p-6 rounded-2xl border border-neutral-100 shadow-sm flex items-center justify-between">
+        <div className="bg-white/5 backdrop-blur-md p-6 rounded-2xl border border-white/10 shadow-sm flex items-center justify-between">
           <div>
-            <span className="text-xs font-bold text-neutral-400 uppercase tracking-widest">Active Today</span>
-            <div className="text-3xl font-black text-green-600">{stats.active}</div>
+            <span className="text-xs font-bold text-violet-400/60 uppercase tracking-widest">Active Today</span>
+            <div className="text-3xl font-black text-emerald-400">{stats.active}</div>
           </div>
-          <TrendingUp className="text-green-100" size={48} />
+          <TrendingUp className="text-emerald-400/10" size={48} />
         </div>
-        <div className="bg-white p-6 rounded-2xl border border-neutral-100 shadow-sm flex items-center justify-between">
+        <div className="bg-white/5 backdrop-blur-md p-6 rounded-2xl border border-white/10 shadow-sm flex items-center justify-between">
           <div>
-            <span className="text-xs font-bold text-neutral-400 uppercase tracking-widest">At Risk</span>
-            <div className="text-3xl font-black text-orange-500">{stats.atRisk}</div>
+            <span className="text-xs font-bold text-violet-400/60 uppercase tracking-widest">At Risk</span>
+            <div className="text-3xl font-black text-orange-400">{stats.atRisk}</div>
           </div>
-          <BadgeAlert className="text-orange-100" size={48} />
+          <BadgeAlert className="text-orange-400/10" size={48} />
         </div>
-        <div className="bg-white p-6 rounded-2xl border border-neutral-100 shadow-sm flex items-center justify-between">
+        <div className="bg-white/5 backdrop-blur-md p-6 rounded-2xl border border-white/10 shadow-sm flex items-center justify-between">
           <div>
-            <span className="text-xs font-bold text-neutral-400 uppercase tracking-widest">Total Students</span>
-            <div className="text-3xl font-black text-violet-600">{stats.total}</div>
+            <span className="text-xs font-bold text-violet-400/60 uppercase tracking-widest">Total Students</span>
+            <div className="text-3xl font-black text-violet-400">{stats.total}</div>
           </div>
-          <Users className="text-violet-100" size={48} />
+          <Users className="text-violet-400/10" size={48} />
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-neutral-100 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-neutral-50 flex items-center justify-between">
-          <h2 className="text-xl font-bold">User Directory</h2>
+      <div className="bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 shadow-sm overflow-hidden">
+        <div className="p-6 border-b border-white/5 flex items-center justify-between">
+          <h2 className="text-xl font-bold text-white">User Directory</h2>
           <button 
             onClick={fetchData}
-            className="text-xs font-bold text-violet-600 hover:text-violet-800 transition-colors uppercase tracking-widest"
+            className="text-xs font-bold text-violet-400 hover:text-white transition-colors uppercase tracking-widest"
           >
             Refresh
           </button>
@@ -131,7 +131,7 @@ export const AdminDashboard: React.FC = () => {
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
-              <tr className="bg-neutral-50/50 text-neutral-400 text-[10px] font-bold uppercase tracking-widest border-b border-neutral-50">
+              <tr className="bg-white/5 text-violet-300/40 text-[10px] font-bold uppercase tracking-widest border-b border-white/5">
                 <th className="px-6 py-4">Student</th>
                 <th className="px-6 py-4 text-center">Status</th>
                 <th className="px-6 py-4 text-center">Streak</th>
@@ -139,32 +139,32 @@ export const AdminDashboard: React.FC = () => {
                 <th className="px-6 py-4 text-center">Last Active</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-neutral-50">
+            <tbody className="divide-y divide-white/5">
               {users.map((u) => (
-                <tr key={u.id} className="hover:bg-neutral-50 transition-colors cursor-pointer group">
+                <tr key={u.id} className="hover:bg-white/5 transition-colors cursor-pointer group">
                   <td className="px-6 py-4">
-                    <div className="font-bold text-neutral-900">{u.name}</div>
-                    <div className="text-[10px] text-neutral-400">{u.email}</div>
+                    <div className="font-bold text-white">{u.name}</div>
+                    <div className="text-[10px] text-white/40">{u.email}</div>
                   </td>
                   <td className="px-6 py-4 text-center">
                     <span className={`
                       text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wider
-                      ${u.status === 'active' ? 'bg-green-50 text-green-600 border border-green-100' : 
-                        u.status === 'at-risk' ? 'bg-orange-50 text-orange-600 border border-orange-100' : 
-                        'bg-red-50 text-red-600 border border-red-100'}
+                      ${u.status === 'active' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 
+                        u.status === 'at-risk' ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20' : 
+                        'bg-rose-500/10 text-rose-400 border border-rose-500/20'}
                     `}>
                       {u.status}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-center">
-                    <div className="flex items-center justify-center gap-1 font-black text-violet-600">
+                    <div className="flex items-center justify-center gap-1 font-black text-violet-400">
                       <span>{u.currentStreak}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-center font-bold text-neutral-500">
+                  <td className="px-6 py-4 text-center font-bold text-white/60">
                     {u.totalHours.toFixed(1)}h
                   </td>
-                  <td className="px-6 py-4 text-center text-xs text-neutral-400 font-medium">
+                  <td className="px-6 py-4 text-center text-xs text-white/30 font-medium">
                     {u.lastActive ? format(new Date(u.lastActive), 'MMM d, yyyy') : 'Never'}
                   </td>
                 </tr>

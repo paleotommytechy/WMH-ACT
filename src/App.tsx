@@ -143,8 +143,8 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-violet-50 flex items-center justify-center">
-        <Loader2 className="text-violet-600 animate-spin" size={40} />
+      <div className="min-h-screen bg-[#130722] flex items-center justify-center">
+        <Loader2 className="text-violet-500 animate-spin" size={40} />
       </div>
     );
   }
@@ -162,23 +162,23 @@ export default function App() {
       <div className="space-y-10">
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-black text-neutral-900">
-              Welcome, <span className="text-violet-600">{profile?.name?.split(' ')[0] || 'Warrior'}</span>
+            <h1 className="text-3xl font-black text-white">
+              Welcome, <span className="text-violet-400">{profile?.name?.split(' ')[0] || 'Warrior'}</span>
             </h1>
-            <p className="text-neutral-500 font-medium">Efficiency is the only currency of mastery.</p>
+            <p className="text-violet-200/60 font-medium">Efficiency is the only currency of mastery.</p>
           </div>
           {profile?.role === 'student' && (
-            <div className="flex bg-white p-2 rounded-2xl border border-violet-100 shadow-sm gap-4 px-6 items-center">
+            <div className="flex bg-white/5 backdrop-blur-md p-2 rounded-2xl border border-white/10 shadow-xl gap-4 px-6 items-center">
               <div className="flex flex-col">
-                <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Weekly Goal</span>
-                <span className="text-lg font-black text-neutral-900">
-                  {Math.floor(weeklyTotalMinutes / 60)}h <span className="text-neutral-300">/ 10h</span>
+                <span className="text-[10px] font-bold text-violet-400/60 uppercase tracking-widest">Weekly Goal</span>
+                <span className="text-lg font-black text-white">
+                  {Math.floor(weeklyTotalMinutes / 60)}h <span className="text-white/20">/ 10h</span>
                 </span>
               </div>
-              <div className="w-px h-10 bg-neutral-100" />
+              <div className="w-px h-10 bg-white/10" />
               <div className="flex flex-col">
-                <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Submissions</span>
-                <span className="text-lg font-black text-violet-600">{submissions.length}</span>
+                <span className="text-[10px] font-bold text-violet-400/60 uppercase tracking-widest">Submissions</span>
+                <span className="text-lg font-black text-violet-400">{submissions.length}</span>
               </div>
             </div>
           )}
@@ -202,17 +202,17 @@ export default function App() {
 
               <section className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-bold flex items-center gap-2">
-                    <Calendar size={20} className="text-violet-500" />
+                  <h2 className="text-xl font-bold flex items-center gap-2 text-white">
+                    <Calendar size={20} className="text-violet-400" />
                     Past Submissions
                   </h2>
                 </div>
                 
                 <div className="space-y-3">
                   {submissions.length === 0 ? (
-                    <div className="p-12 border-2 border-dashed border-neutral-200 rounded-2xl text-center">
-                      <Plus className="mx-auto text-neutral-300 mb-2" size={32} />
-                      <p className="text-neutral-400 font-medium text-sm">No work documented yet. Start now.</p>
+                    <div className="p-12 border-2 border-dashed border-white/5 rounded-2xl text-center">
+                      <Plus className="mx-auto text-white/10 mb-2" size={32} />
+                      <p className="text-white/20 font-medium text-sm">No work documented yet. Start now.</p>
                     </div>
                   ) : (
                     submissions.map((s) => (
@@ -220,18 +220,18 @@ export default function App() {
                         key={s.id}
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
-                        className="bg-white p-5 rounded-2xl border border-neutral-100 shadow-sm hover:border-violet-200 transition-all flex items-center justify-between group"
+                        className="bg-white/5 backdrop-blur-sm p-5 rounded-2xl border border-white/10 shadow-sm hover:border-violet-500/50 transition-all flex items-center justify-between group"
                       >
                         <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-violet-50 rounded-xl flex items-center justify-center text-violet-600 group-hover:bg-violet-600 group-hover:text-white transition-colors">
+                          <div className="w-12 h-12 bg-violet-500/10 rounded-xl flex items-center justify-center text-violet-400 group-hover:bg-violet-600 group-hover:text-white transition-colors">
                             <Clock size={24} />
                           </div>
                           <div>
-                            <h4 className="font-bold text-neutral-900">{s.task_completed}</h4>
-                            <div className="flex items-center gap-2 text-xs text-neutral-400">
+                            <h4 className="font-bold text-white">{s.task_completed}</h4>
+                            <div className="flex items-center gap-2 text-xs text-white/40">
                               <span>{format(new Date(s.submitted_date), 'MMM d, yyyy')}</span>
                               <span>•</span>
-                              <span className="font-bold text-violet-500">{s.time_spent}m</span>
+                              <span className="font-bold text-violet-400">{s.time_spent}m</span>
                             </div>
                           </div>
                         </div>
@@ -241,7 +241,7 @@ export default function App() {
                               href={s.proof_url}
                               target="_blank"
                               rel="noreferrer"
-                              className="p-2 bg-neutral-50 text-neutral-400 rounded-lg hover:bg-violet-50 hover:text-violet-600 transition-all"
+                              className="p-2 bg-white/5 text-white/40 rounded-lg hover:bg-violet-500/20 hover:text-violet-400 transition-all"
                             >
                               <ChevronRight size={20} />
                             </a>
@@ -260,25 +260,25 @@ export default function App() {
                 longest={calculateStreak(submissions).longest} 
               />
               
-              <div className="bg-neutral-900 text-white rounded-2xl p-6 shadow-xl relative overflow-hidden">
+              <div className="bg-white/5 backdrop-blur-md text-white rounded-2xl p-6 shadow-xl border border-white/10 relative overflow-hidden">
                 <div className="relative z-10">
                   <h3 className="font-black text-xl mb-4 italic">The Mastery Mandate</h3>
-                  <ul className="space-y-4 text-sm text-neutral-400 font-medium">
+                  <ul className="space-y-4 text-sm text-violet-200/60 font-medium">
                     <li className="flex gap-2">
-                      <span className="text-violet-500 font-bold">01</span>
+                      <span className="text-violet-400 font-bold">01</span>
                       <span>Execution is greater than intent. Always.</span>
                     </li>
                     <li className="flex gap-2">
-                      <span className="text-violet-500 font-bold">02</span>
+                      <span className="text-violet-400 font-bold">02</span>
                       <span>If it wasn't documented, it never happened.</span>
                     </li>
                     <li className="flex gap-2">
-                      <span className="text-violet-500 font-bold">03</span>
+                      <span className="text-violet-400 font-bold">03</span>
                       <span>The streak is a representation of your integrity.</span>
                     </li>
                   </ul>
                 </div>
-                <div className="absolute bottom-0 right-0 p-4 opacity-10">
+                <div className="absolute bottom-0 right-0 p-4 opacity-5">
                   <TrendingUp size={120} />
                 </div>
               </div>

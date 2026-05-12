@@ -28,14 +28,14 @@ export const StreakDisplay: React.FC<StreakDisplayProps> = ({ current, longest }
 
       <motion.div
         whileHover={{ scale: 1.02 }}
-        className="bg-white border border-violet-100 rounded-2xl p-6 flex flex-col items-center justify-center text-center group"
+        className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-6 flex flex-col items-center justify-center text-center group"
       >
-        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-neutral-400 mb-1">Longest Streak</span>
+        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-violet-400/60 mb-1">Longest Streak</span>
         <div className="flex items-baseline gap-1">
-          <span className="text-4xl font-black text-violet-900">{longest}</span>
-          <span className="font-bold text-violet-600/50 uppercase text-xs">Best</span>
+          <span className="text-4xl font-black text-white">{longest}</span>
+          <span className="font-bold text-violet-400 uppercase text-xs">Best</span>
         </div>
-        <Trophy className="mt-2 text-violet-200 group-hover:text-yellow-500 transition-colors" size={24} />
+        <Trophy className="mt-2 text-white/10 group-hover:text-yellow-500 transition-colors" size={24} />
       </motion.div>
     </div>
   );

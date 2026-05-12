@@ -23,16 +23,16 @@ export const PublicGenerator: React.FC<PublicGeneratorProps> = ({ posts, onClose
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="bg-violet-50 rounded-2xl p-6 border-2 border-violet-200 mt-8 shadow-inner"
+      className="bg-violet-900/20 backdrop-blur-md rounded-2xl p-6 border border-violet-500/30 mt-8 shadow-inner"
     >
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h3 className="text-lg font-black text-violet-900 leading-none">Learning in Public</h3>
-          <p className="text-violet-600 text-xs mt-1">Generated posts for your networks</p>
+          <h3 className="text-lg font-black text-white leading-none">Learning in Public</h3>
+          <p className="text-violet-400 text-xs mt-1">Generated posts for your networks</p>
         </div>
         <button
           onClick={onClose}
-          className="text-violet-400 hover:text-violet-600 font-bold text-sm"
+          className="text-violet-400 hover:text-white font-bold text-sm"
         >
           Dismiss
         </button>
@@ -42,19 +42,19 @@ export const PublicGenerator: React.FC<PublicGeneratorProps> = ({ posts, onClose
         {/* LinkedIn */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <span className="flex items-center gap-1.5 text-xs font-bold text-neutral-500 uppercase tracking-widest">
-              <Linkedin size={14} className="text-[#0077B5]" />
+            <span className="flex items-center gap-1.5 text-xs font-bold text-violet-300/40 uppercase tracking-widest">
+              <Linkedin size={14} className="text-[#0A66C2]" />
               LinkedIn Post
             </span>
             <button
               onClick={() => copyToClipboard(posts.linkedin, 'li')}
-              className="flex items-center gap-1 text-[10px] font-bold bg-white px-2 py-1 rounded-md border border-violet-100 hover:bg-violet-100 transition-colors"
+              className="flex items-center gap-1 text-[10px] font-bold bg-white/5 px-2 py-1 rounded-md border border-white/10 hover:bg-white/10 transition-colors text-white"
             >
-              {copied === 'li' ? <Check size={12} className="text-green-500" /> : <Copy size={12} />}
+              {copied === 'li' ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
               {copied === 'li' ? 'Copied' : 'Copy Text'}
             </button>
           </div>
-          <div className="bg-white p-4 rounded-xl border border-violet-100 text-sm italic text-neutral-600 whitespace-pre-wrap leading-relaxed">
+          <div className="bg-white/5 p-4 rounded-xl border border-white/5 text-sm italic text-violet-200/80 whitespace-pre-wrap leading-relaxed">
             {posts.linkedin}
           </div>
         </div>
@@ -62,19 +62,19 @@ export const PublicGenerator: React.FC<PublicGeneratorProps> = ({ posts, onClose
         {/* WhatsApp */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <span className="flex items-center gap-1.5 text-xs font-bold text-neutral-500 uppercase tracking-widest">
+            <span className="flex items-center gap-1.5 text-xs font-bold text-violet-300/40 uppercase tracking-widest">
               <Whatsapp size={14} className="text-[#25D366]" />
               WhatsApp Update
             </span>
             <button
               onClick={() => copyToClipboard(posts.whatsapp, 'wa')}
-              className="flex items-center gap-1 text-[10px] font-bold bg-white px-2 py-1 rounded-md border border-violet-100 hover:bg-violet-100 transition-colors"
+              className="flex items-center gap-1 text-[10px] font-bold bg-white/5 px-2 py-1 rounded-md border border-white/10 hover:bg-white/10 transition-colors text-white"
             >
-              {copied === 'wa' ? <Check size={12} className="text-green-500" /> : <Copy size={12} />}
+              {copied === 'wa' ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
               {copied === 'wa' ? 'Copied' : 'Copy Text'}
             </button>
           </div>
-          <div className="bg-white p-4 rounded-xl border border-violet-100 text-sm font-mono text-neutral-600 whitespace-pre-wrap leading-relaxed">
+          <div className="bg-white/5 p-4 rounded-xl border border-white/5 text-sm font-mono text-violet-200/80 whitespace-pre-wrap leading-relaxed">
             {posts.whatsapp}
           </div>
         </div>
