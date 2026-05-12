@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { supabase } from '@/src/lib/supabase';
 import { Layout } from './Layout';
-import { Loader2, Mail, Lock, User as UserIcon } from 'lucide-react';
+import { Loader2, Mail, Lock, User as UserIcon, Eye, EyeOff } from 'lucide-react';
 import { motion } from 'motion/react';
 
 export const AuthForm: React.FC = () => {
@@ -10,6 +10,7 @@ export const AuthForm: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [fullName, setFullName] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -104,7 +105,7 @@ export const AuthForm: React.FC = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none transition-all placeholder:text-neutral-600 text-white"
-                  placeholder="name@example.com"
+                  placeholder="wilsonmasteryhub@gmail.com"
                 />
               </div>
             </div>
@@ -116,13 +117,20 @@ export const AuthForm: React.FC = () => {
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-violet-400" size={18} />
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none transition-all placeholder:text-neutral-600 text-white"
+                  className="w-full pl-10 pr-10 py-3 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none transition-all placeholder:text-neutral-600 text-white"
                   placeholder="••••••••"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-violet-400 hover:text-violet-300 transition-colors"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
               </div>
             </div>
 
@@ -135,7 +143,7 @@ export const AuthForm: React.FC = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-violet-600 hover:bg-violet-700 text-white font-semibold py-3 rounded-xl transition-all shadow-lg shadow-violet-200 flex items-center justify-center gap-2 disabled:opacity-70"
+              className="w-full bg-violet-600 hover:bg-violet-700 text-white font-semibold py-3 rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-70"
             >
               {loading && <Loader2 className="animate-spin" size={18} />}
               {isLogin ? 'Sign In' : 'Create Account'}
