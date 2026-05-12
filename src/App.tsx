@@ -7,7 +7,7 @@ import { SubmissionForm } from './components/SubmissionForm';
 import { StreakDisplay } from './components/StreakDisplay';
 import { PublicGenerator } from './components/PublicGenerator';
 import { AdminDashboard } from './components/AdminDashboard';
-import { Loader2, Plus, Calendar, Clock, ChevronRight } from 'lucide-react';
+import { Loader2, Plus, Calendar, Clock, ChevronRight, TrendingUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format, startOfWeek, endOfWeek, isSameWeek } from 'date-fns';
 
@@ -40,7 +40,7 @@ export default function App() {
   const fetchProfile = async (userId: string) => {
     try {
       const { data, error } = await supabase
-        .from('profiles')
+        .from('users')
         .select('*')
         .eq('id', userId)
         .single();
@@ -48,14 +48,18 @@ export default function App() {
       if (error && error.code !== 'PGRST116') throw error;
       
       if (!data) {
-        // Create profile if not exists (fallback if trigger fails)
-        const { data: newProfile, error: createError } = await supabase
-          .from('profiles')
-          .insert([{ id: userId, full_name: session?.user?.user_metadata?.full_name }])
+        // Create user if not exists
+        const { data: newUser, error: createError } = await supabase
+          .from('users')
+          .insert([{ 
+            id: userId, 
+            name: session?.user?.user_metadata?.full_name || 'Warrior',
+            email: session?.user?.email || ''
+          }])
           .select()
           .single();
         if (createError) throw createError;
-        setProfile(newProfile);
+        setProfile(newUser);
       } else {
         setProfile(data);
       }
@@ -80,8 +84,61 @@ export default function App() {
 
   const onSubmissionSuccess = (posts: { linkedin: string; whatsapp: string }) => {
     setGeneratedPosts(posts);
-    if (session) fetchSubmissions(session.user.id);
-    if (session) fetchProfile(session.user.id); // Refresh streak
+    if (session) {
+      fetchSubmissions(session.user.id);
+      fetchProfile(session.user.id);
+    }
+  };
+
+  const calculateStreak = (subs: any[]) => {
+    if (!subs || subs.length === 0) return { current: 0, longest: 0 };
+    
+    // Get unique dates sorted descending
+    const dates = Array.from(new Set(subs.map(s => s.submitted_date))).sort((a, b) => b.localeCompare(a));
+    
+    let current = 0;
+    let longest = 0;
+    let tempStreak = 0;
+    
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const yesterday = format(new Date(Date.now() - 86400000), 'yyyy-MM-dd');
+    
+    // Check if streak is still active (today or yesterday)
+    if (dates[0] !== today && dates[0] !== yesterday) {
+      current = 0;
+    } else {
+      // Calculate current streak
+      let lastDate = new Date(dates[0]);
+      current = 1;
+      for (let i = 1; i < dates.length; i++) {
+        const currentDate = new Date(dates[i]);
+        const diff = (lastDate.getTime() - currentDate.getTime()) / (1000 * 3600 * 24);
+        if (diff === 1) {
+          current++;
+          lastDate = currentDate;
+        } else {
+          break;
+        }
+      }
+    }
+
+    // Calculate longest streak
+    tempStreak = 1;
+    longest = 1;
+    for (let i = 1; i < dates.length; i++) {
+      const d1 = new Date(dates[i-1]);
+      const d2 = new Date(dates[i]);
+      const diff = (d1.getTime() - d2.getTime()) / (1000 * 3600 * 24);
+      if (diff === 1) {
+        tempStreak++;
+      } else {
+        longest = Math.max(longest, tempStreak);
+        tempStreak = 1;
+      }
+    }
+    longest = Math.max(longest, tempStreak);
+
+    return { current, longest };
   };
 
   if (loading) {
@@ -106,7 +163,7 @@ export default function App() {
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-black text-neutral-900">
-              Welcome, <span className="text-violet-600">{profile?.full_name?.split(' ')[0] || 'Warrior'}</span>
+              Welcome, <span className="text-violet-600">{profile?.name?.split(' ')[0] || 'Warrior'}</span>
             </h1>
             <p className="text-neutral-500 font-medium">Efficiency is the only currency of mastery.</p>
           </div>
@@ -170,22 +227,26 @@ export default function App() {
                             <Clock size={24} />
                           </div>
                           <div>
-                            <h4 className="font-bold text-neutral-900">{s.task_name}</h4>
+                            <h4 className="font-bold text-neutral-900">{s.task_completed}</h4>
                             <div className="flex items-center gap-2 text-xs text-neutral-400">
-                              <span>{format(new Date(s.created_at), 'MMM d, h:mm a')}</span>
+                              <span>{format(new Date(s.submitted_date), 'MMM d, yyyy')}</span>
                               <span>•</span>
                               <span className="font-bold text-violet-500">{s.time_spent}m</span>
                             </div>
                           </div>
                         </div>
-                        <a
-                          href={s.proof_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="p-2 bg-neutral-50 text-neutral-400 rounded-lg hover:bg-violet-50 hover:text-violet-600 transition-all"
-                        >
-                          <ChevronRight size={20} />
-                        </a>
+                        <div className="flex items-center gap-2">
+                          {s.proof_url && (
+                            <a
+                              href={s.proof_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="p-2 bg-neutral-50 text-neutral-400 rounded-lg hover:bg-violet-50 hover:text-violet-600 transition-all"
+                            >
+                              <ChevronRight size={20} />
+                            </a>
+                          )}
+                        </div>
                       </motion.div>
                     ))
                   )}
@@ -195,8 +256,8 @@ export default function App() {
 
             <div className="space-y-6">
               <StreakDisplay 
-                current={profile?.streak_count || 0} 
-                longest={profile?.longest_streak || 0} 
+                current={calculateStreak(submissions).current} 
+                longest={calculateStreak(submissions).longest} 
               />
               
               <div className="bg-neutral-900 text-white rounded-2xl p-6 shadow-xl relative overflow-hidden">

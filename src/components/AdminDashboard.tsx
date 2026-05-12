@@ -17,33 +17,60 @@ export const AdminDashboard: React.FC = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const { data: profiles, error: pError } = await supabase
-        .from('profiles')
+      const { data: usersData, error: uError } = await supabase
+        .from('users')
         .select(`
           *,
           submissions (
             id,
-            created_at,
+            submitted_date,
             time_spent
           )
         `)
-        .order('full_name');
+        .order('name');
 
-      if (pError) throw pError;
+      if (uError) throw uError;
 
-      const processed = profiles.map((p: any) => {
-        const lastSubDate = p.last_submission_date ? new Date(p.last_submission_date) : null;
+      const processed = usersData.map((u: any) => {
+        const sortedSubs = (u.submissions || []).sort((a: any, b: any) => 
+          b.submitted_date.localeCompare(a.submitted_date)
+        );
+        
+        const lastSubDateStr = sortedSubs[0]?.submitted_date;
+        const lastSubDate = lastSubDateStr ? new Date(lastSubDateStr) : null;
         const now = new Date();
-        const diffDays = lastSubDate ? Math.floor((now.getTime() - lastSubDate.getTime()) / (1000 * 3600 * 24)) : 999;
+        const today = format(now, 'yyyy-MM-dd');
+        
+        const diffDays = lastSubDateStr ? Math.floor((new Date(today).getTime() - new Date(lastSubDateStr).getTime()) / (1000 * 3600 * 24)) : 999;
         
         let status: 'active' | 'at-risk' | 'inactive' = 'inactive';
         if (diffDays <= 1) status = 'active';
         else if (diffDays <= 3) status = 'at-risk';
 
+        // Calculate Streak
+        let currentStreak = 0;
+        if (lastSubDateStr) {
+          const yesterday = format(new Date(now.getTime() - 86400000), 'yyyy-MM-dd');
+          if (lastSubDateStr === today || lastSubDateStr === yesterday) {
+            const uniqueDates = Array.from(new Set(sortedSubs.map((s: any) => s.submitted_date))) as string[];
+            currentStreak = 1;
+            let lastD = new Date(uniqueDates[0]);
+            for (let i = 1; i < uniqueDates.length; i++) {
+              const currD = new Date(uniqueDates[i]);
+              if ((lastD.getTime() - currD.getTime()) / (1000 * 3600 * 24) === 1) {
+                currentStreak++;
+                lastD = currD;
+              } else break;
+            }
+          }
+        }
+
         return {
-          ...p,
+          ...u,
           status,
-          totalHours: p.submissions?.reduce((acc: number, s: any) => acc + (s.time_spent / 60), 0) || 0
+          currentStreak,
+          totalHours: u.submissions?.reduce((acc: number, s: any) => acc + (s.time_spent / 60), 0) || 0,
+          lastActive: lastSubDateStr
         };
       });
 
@@ -116,8 +143,8 @@ export const AdminDashboard: React.FC = () => {
               {users.map((u) => (
                 <tr key={u.id} className="hover:bg-neutral-50 transition-colors cursor-pointer group">
                   <td className="px-6 py-4">
-                    <div className="font-bold text-neutral-900">{u.full_name}</div>
-                    <div className="text-[10px] text-neutral-400">{u.id.substring(0, 8)}...</div>
+                    <div className="font-bold text-neutral-900">{u.name}</div>
+                    <div className="text-[10px] text-neutral-400">{u.email}</div>
                   </td>
                   <td className="px-6 py-4 text-center">
                     <span className={`
@@ -131,14 +158,14 @@ export const AdminDashboard: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 text-center">
                     <div className="flex items-center justify-center gap-1 font-black text-violet-600">
-                      <span>{u.streak_count}</span>
+                      <span>{u.currentStreak}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4 text-center font-bold text-neutral-500">
                     {u.totalHours.toFixed(1)}h
                   </td>
                   <td className="px-6 py-4 text-center text-xs text-neutral-400 font-medium">
-                    {u.last_submission_date ? format(new Date(u.last_submission_date), 'MMM d, h:mm a') : 'Never'}
+                    {u.lastActive ? format(new Date(u.lastActive), 'MMM d, yyyy') : 'Never'}
                   </td>
                 </tr>
               ))}

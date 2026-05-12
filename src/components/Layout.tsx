@@ -18,11 +18,20 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, profile }) => {
     <div className="min-h-screen bg-neutral-50 text-neutral-900 font-sans">
       <nav className="bg-white border-b border-violet-100 sticky top-0 z-50">
         <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-violet-600 rounded-lg flex items-center justify-center text-white font-bold">
+          <div className="flex items-center gap-3">
+            <img 
+              src="/logo.png" 
+              alt="WMH Logo" 
+              className="w-10 h-10 object-contain rounded-lg"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+                e.currentTarget.parentElement?.querySelector('.fallback-logo')?.classList.remove('hidden');
+              }}
+            />
+            <div className="fallback-logo hidden w-10 h-10 bg-violet-600 rounded-lg flex items-center justify-center text-white font-bold shrink-0">
               W
             </div>
-            <span className="font-bold text-lg tracking-tight text-violet-900">
+            <span className="font-bold text-lg tracking-tight text-violet-900 hidden sm:block">
               WMH<span className="text-violet-500">-ACT</span>
             </span>
           </div>

@@ -29,16 +29,18 @@ export const AuthForm: React.FC = () => {
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
-          options: {
-            data: {
-              full_name: fullName,
-            },
-          },
         });
         if (error) throw error;
-        
-        // Supabase might automatically create profile via trigger, but let's ensure it here if needed
-        // For simplicity, we assume a database trigger handles profile creation from auth.users
+
+        if (data.user) {
+          const { error: profileError } = await supabase.from('users').insert([{
+            id: data.user.id,
+            email: email,
+            name: fullName || 'Warrior',
+            role: 'student'
+          }]);
+          if (profileError) console.error('Profile creation error:', profileError);
+        }
       }
     } catch (err: any) {
       setError(err.message);
@@ -56,6 +58,12 @@ export const AuthForm: React.FC = () => {
           className="bg-white p-8 rounded-2xl shadow-xl shadow-violet-100 border border-violet-50"
         >
           <div className="text-center mb-8">
+            <img 
+              src="/logo.png" 
+              alt="Wilson Mastery Hub" 
+              className="w-20 h-20 mx-auto mb-4 object-contain shadow-sm rounded-xl"
+              onError={(e) => e.currentTarget.style.display = 'none'}
+            />
             <h1 className="text-2xl font-bold text-neutral-900 mb-2">
               {isLogin ? 'Welcome Back' : 'Join the Hub'}
             </h1>

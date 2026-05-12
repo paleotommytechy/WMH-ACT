@@ -5,6 +5,7 @@ import { Loader2, Send, CheckCircle2, Link as LinkIcon, Image as ImageIcon } fro
 import { motion, AnimatePresence } from 'motion/react';
 import { generateSocialPosts } from '@/src/lib/gemini';
 import confetti from 'canvas-confetti';
+import { format } from 'date-fns';
 
 interface SubmissionFormProps {
   userId: string;
@@ -13,7 +14,7 @@ interface SubmissionFormProps {
 
 export const SubmissionForm: React.FC<SubmissionFormProps> = ({ userId, onSuccess }) => {
   const [loading, setLoading] = useState(false);
-  const [taskName, setTaskName] = useState('');
+  const [taskCompleted, setTaskCompleted] = useState('');
   const [timeSpent, setTimeSpent] = useState('');
   const [reflection, setReflection] = useState('');
   const [proofUrl, setProofUrl] = useState('');
@@ -25,14 +26,17 @@ export const SubmissionForm: React.FC<SubmissionFormProps> = ({ userId, onSucces
     setError(null);
 
     try {
+      const today = format(new Date(), 'yyyy-MM-dd');
+      
       // 1. Submit to Supabase
       const { error: submitError } = await supabase.from('submissions').insert([
         {
           user_id: userId,
-          task_name: taskName,
+          task_completed: taskCompleted,
           time_spent: parseInt(timeSpent),
           reflection,
           proof_url: proofUrl,
+          submitted_date: today,
         },
       ]);
 
@@ -48,7 +52,7 @@ export const SubmissionForm: React.FC<SubmissionFormProps> = ({ userId, onSucces
 
       // 3. Generate Posts via Gemini
       const posts = await generateSocialPosts({
-        task_name: taskName,
+        task_name: taskCompleted,
         time_spent: parseInt(timeSpent),
         reflection,
       });
@@ -56,7 +60,7 @@ export const SubmissionForm: React.FC<SubmissionFormProps> = ({ userId, onSucces
       onSuccess(posts);
       
       // Reset
-      setTaskName('');
+      setTaskCompleted('');
       setTimeSpent('');
       setReflection('');
       setProofUrl('');
@@ -83,8 +87,8 @@ export const SubmissionForm: React.FC<SubmissionFormProps> = ({ userId, onSucces
             <input
               type="text"
               required
-              value={taskName}
-              onChange={(e) => setTaskName(e.target.value)}
+              value={taskCompleted}
+              onChange={(e) => setTaskCompleted(e.target.value)}
               className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-violet-500 outline-none transition-all"
               placeholder="e.g. React Module 1"
             />
