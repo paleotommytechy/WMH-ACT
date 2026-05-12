@@ -5,11 +5,13 @@ import { Layout } from './components/Layout';
 import { AuthForm } from './components/AuthForm';
 import { SubmissionForm } from './components/SubmissionForm';
 import { StreakDisplay } from './components/StreakDisplay';
+import { ConsistencyTracker } from './components/ConsistencyTracker';
 import { PublicGenerator } from './components/PublicGenerator';
 import { AdminDashboard } from './components/AdminDashboard';
 import { Loader2, Plus, Calendar, Clock, ChevronRight, TrendingUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format, startOfWeek, endOfWeek, isSameWeek } from 'date-fns';
+import { Toaster } from 'react-hot-toast';
 
 export default function App() {
   const [session, setSession] = useState<any>(null);
@@ -53,7 +55,7 @@ export default function App() {
           .from('users')
           .insert([{ 
             id: userId, 
-            name: session?.user?.user_metadata?.full_name || 'Warrior',
+            name: session?.user?.user_metadata?.full_name || session?.user?.email?.split('@')[0] || 'User',
             email: session?.user?.email || ''
           }])
           .select()
@@ -159,11 +161,18 @@ export default function App() {
 
   return (
     <Layout user={session.user} profile={profile}>
+      <Toaster position="top-right" toastOptions={{
+        style: {
+          background: '#1e1b4b',
+          color: '#fff',
+          border: '1px solid rgba(255,255,255,0.1)',
+        },
+      }} />
       <div className="space-y-10">
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-black text-white">
-              Welcome, <span className="text-violet-400">{profile?.name?.split(' ')[0] || 'Warrior'}</span>
+              Welcome, <span className="text-violet-400">{profile?.name?.split(' ')[0] || session?.user?.email?.split('@')[0] || 'User'}</span>
             </h1>
             <p className="text-violet-200/60 font-medium">Efficiency is the only currency of mastery.</p>
           </div>
@@ -259,6 +268,8 @@ export default function App() {
                 current={calculateStreak(submissions).current} 
                 longest={calculateStreak(submissions).longest} 
               />
+              
+              <ConsistencyTracker submissions={submissions} />
               
               <div className="bg-white/5 backdrop-blur-md text-white rounded-2xl p-6 shadow-xl border border-white/10 relative overflow-hidden">
                 <div className="relative z-10">

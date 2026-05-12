@@ -4,6 +4,7 @@ import { supabase } from '@/src/lib/supabase';
 import { Layout } from './Layout';
 import { Loader2, Mail, Lock, User as UserIcon, Eye, EyeOff } from 'lucide-react';
 import { motion } from 'motion/react';
+import { toast } from 'react-hot-toast';
 
 export const AuthForm: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -26,6 +27,7 @@ export const AuthForm: React.FC = () => {
           password,
         });
         if (error) throw error;
+        toast.success('Welcome back!');
       } else {
         const { data, error } = await supabase.auth.signUp({
           email,
@@ -37,14 +39,16 @@ export const AuthForm: React.FC = () => {
           const { error: profileError } = await supabase.from('users').insert([{
             id: data.user.id,
             email: email,
-            name: fullName || 'Warrior',
+            name: fullName || email.split('@')[0],
             role: 'student'
           }]);
           if (profileError) console.error('Profile creation error:', profileError);
         }
+        toast.success('Account created successfully!');
       }
     } catch (err: any) {
       setError(err.message);
+      toast.error(err.message || 'An error occurred');
     } finally {
       setLoading(false);
     }
