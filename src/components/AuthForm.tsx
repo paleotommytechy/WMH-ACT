@@ -6,7 +6,12 @@ import { Loader2, Mail, Lock, User as UserIcon, Eye, EyeOff } from 'lucide-react
 import { motion } from 'motion/react';
 import { toast } from 'react-hot-toast';
 
-export const AuthForm: React.FC = () => {
+interface AuthFormProps {
+  theme?: 'dark' | 'light';
+  toggleTheme?: () => void;
+}
+
+export const AuthForm: React.FC<AuthFormProps> = ({ theme = 'dark', toggleTheme }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
@@ -36,11 +41,11 @@ export const AuthForm: React.FC = () => {
         if (error) throw error;
 
         if (data.user) {
-          const { error: profileError } = await supabase.from('users').insert([{
+          const { error: profileError } = await supabase.from('profiles').insert([{
             id: data.user.id,
             email: email,
-            name: fullName || email.split('@')[0],
-            role: 'student'
+            full_name: fullName || email.split('@')[0],
+            username: email.split('@')[0] + Math.floor(Math.random() * 1000)
           }]);
           if (profileError) console.error('Profile creation error:', profileError);
         }
@@ -55,24 +60,31 @@ export const AuthForm: React.FC = () => {
   };
 
   return (
-    <Layout hideNav>
+    <Layout 
+      hideNav 
+      theme={theme} 
+      toggleTheme={toggleTheme}
+    >
       <div className="max-w-md mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-neutral-900/40 backdrop-blur-xl p-8 rounded-3xl shadow-2xl border border-white/10"
+          className={`backdrop-blur-xl p-8 rounded-3xl shadow-2xl border transition-all ${theme === 'dark' ? 'bg-neutral-900/40 border-white/10' : 'bg-white border-slate-200'}`}
         >
           <div className="text-center mb-8">
             <img 
-              src="https://jnvpkyvtajegjuqnluzp.supabase.co/storage/v1/object/public/Wilson%20Mastery%20Hub%20images/logo-transparent.png" 
+              src={theme === 'light' 
+                ? "https://jnvpkyvtajegjuqnluzp.supabase.co/storage/v1/object/public/Wilson%20Mastery%20Hub%20images/logo-dark-bg.png" 
+                : "https://jnvpkyvtajegjuqnluzp.supabase.co/storage/v1/object/public/Wilson%20Mastery%20Hub%20images/logo-transparent.png"
+              } 
               alt="Wilson Mastery Hub" 
               className="w-full max-w-[280px] h-auto mx-auto mb-6 object-contain"
               onError={(e) => e.currentTarget.style.display = 'none'}
             />
-            <h1 className="text-2xl font-bold text-white mb-2">
+            <h1 className={`text-2xl font-bold mb-2 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
               {isLogin ? 'Welcome Back' : 'Join the Hub'}
             </h1>
-            <p className="text-violet-200/60 text-sm">
+            <p className={`${theme === 'dark' ? 'text-violet-200/60' : 'text-slate-500'} text-sm`}>
               {isLogin ? 'Sign in to track your mastery progress' : 'Start your accountability journey today'}
             </p>
           </div>
@@ -80,7 +92,7 @@ export const AuthForm: React.FC = () => {
           <form onSubmit={handleSubmit} className="space-y-4">
             {!isLogin && (
               <div>
-                <label className="block text-xs font-semibold text-violet-300 uppercase tracking-wider mb-1.5 ml-1">
+                <label className={`block text-xs font-semibold uppercase tracking-wider mb-1.5 ml-1 ${theme === 'dark' ? 'text-violet-300' : 'text-violet-600'}`}>
                   Full Name
                 </label>
                 <div className="relative">
@@ -90,7 +102,7 @@ export const AuthForm: React.FC = () => {
                     required
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none transition-all placeholder:text-neutral-600 text-white"
+                    className={`w-full pl-10 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none transition-all placeholder:text-neutral-600 ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
                     placeholder="John Doe"
                   />
                 </div>
@@ -98,7 +110,7 @@ export const AuthForm: React.FC = () => {
             )}
 
             <div>
-              <label className="block text-xs font-semibold text-violet-300 uppercase tracking-wider mb-1.5 ml-1">
+              <label className={`block text-xs font-semibold uppercase tracking-wider mb-1.5 ml-1 ${theme === 'dark' ? 'text-violet-300' : 'text-violet-600'}`}>
                 Email Address
               </label>
               <div className="relative">
@@ -108,14 +120,14 @@ export const AuthForm: React.FC = () => {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none transition-all placeholder:text-neutral-600 text-white"
+                  className={`w-full pl-10 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none transition-all placeholder:text-neutral-600 ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
                   placeholder="wilsonmasteryhub@gmail.com"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-violet-300 uppercase tracking-wider mb-1.5 ml-1">
+              <label className={`block text-xs font-semibold uppercase tracking-wider mb-1.5 ml-1 ${theme === 'dark' ? 'text-violet-300' : 'text-violet-600'}`}>
                 Password
               </label>
               <div className="relative">
@@ -125,7 +137,7 @@ export const AuthForm: React.FC = () => {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-10 pr-10 py-3 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none transition-all placeholder:text-neutral-600 text-white"
+                  className={`w-full pl-10 pr-10 py-3 border rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none transition-all placeholder:text-neutral-600 ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
                   placeholder="••••••••"
                 />
                 <button
@@ -157,7 +169,7 @@ export const AuthForm: React.FC = () => {
           <div className="mt-6 text-center">
             <button
               onClick={() => setIsLogin(!isLogin)}
-              className="text-sm text-violet-300 hover:text-white font-medium transition-colors"
+              className={`text-sm font-medium transition-colors ${theme === 'dark' ? 'text-violet-300 hover:text-white' : 'text-violet-600 hover:text-slate-900'}`}
             >
               {isLogin ? "Don't have an account? Sign Up" : 'Already have an account? Sign In'}
             </button>

@@ -25,6 +25,40 @@ export default function App() {
   const [generatedPosts, setGeneratedPosts] = useState<{ linkedin: string; whatsapp: string } | null>(null);
 
   const [activeTab, setActiveTab] = useState<'daily' | 'weekly' | 'profile'>('daily');
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+
+  useEffect(() => {
+    // Initial theme check
+    const savedTheme = localStorage.getItem('theme') as 'dark' | 'light';
+    if (savedTheme) {
+      setTheme(savedTheme);
+      document.documentElement.className = savedTheme;
+    }
+  }, []);
+
+  const toggleTheme = async () => {
+    const newTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(newTheme);
+    document.documentElement.className = newTheme;
+    localStorage.setItem('theme', newTheme);
+
+    if (profile) {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ preferred_theme: newTheme })
+        .eq('id', profile.id);
+      if (error) console.error('Error saving theme preference:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (profile?.preferred_theme && profile.preferred_theme !== theme) {
+      const pTheme = profile.preferred_theme as 'dark' | 'light';
+      setTheme(pTheme);
+      document.documentElement.className = pTheme;
+      localStorage.setItem('theme', pTheme);
+    }
+  }, [profile?.preferred_theme]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -166,16 +200,16 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#130722] flex items-center justify-center">
+      <div className={`min-h-screen flex items-center justify-center transition-colors duration-300 ${theme === 'dark' ? 'bg-[#130722]' : 'bg-slate-50'}`}>
         <Loader2 className="text-violet-500 animate-spin" size={40} />
       </div>
     );
   }
 
-  if (!session) return <AuthForm />;
+  if (!session) return <AuthForm theme={theme} toggleTheme={toggleTheme} />;
 
   if (profile && !profile.onboarding_completed) {
-    return <ProfileSetup userId={session.user.id} email={session.user.email} onComplete={setProfile} />;
+    return <ProfileSetup userId={session.user.id} email={session.user.email} onComplete={setProfile} theme={theme} />;
   }
 
   const weekStart = startOfWeek(new Date());
@@ -185,7 +219,13 @@ export default function App() {
     .reduce((acc, s) => acc + s.time_spent, 0);
 
   return (
-    <Layout user={session.user} profile={profile} onTabChange={setActiveTab}>
+    <Layout 
+      user={session.user} 
+      profile={profile} 
+      onTabChange={setActiveTab}
+      theme={theme}
+      toggleTheme={toggleTheme}
+    >
       <Toaster position="top-right" toastOptions={{
         style: {
           background: '#1e1b4b',
@@ -196,38 +236,38 @@ export default function App() {
       <div className="space-y-10">
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-black text-white">
+            <h1 className={`text-3xl font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
               Welcome, <span className="text-violet-400">{profile?.full_name?.split(' ')[0] || session?.user?.email?.split('@')[0] || 'User'}</span>
             </h1>
-            <p className="text-violet-200/60 font-medium">Efficiency is the only currency of mastery.</p>
+            <p className={`${theme === 'dark' ? 'text-violet-200/60' : 'text-slate-500'} font-medium`}>Efficiency is the only currency of mastery.</p>
           </div>
           {profile?.community_role === 'member' && (
             <>
-              <div className="flex bg-white/5 backdrop-blur-md p-1 rounded-2xl border border-white/10 shadow-xl items-center">
+              <div className={`flex backdrop-blur-md p-1 rounded-2xl border shadow-xl items-center ${theme === 'dark' ? 'bg-white/5 border-white/10' : 'bg-slate-100 border-slate-200'}`}>
                 <button 
                   onClick={() => setActiveTab('daily')}
-                  className={`px-6 py-2 rounded-xl text-xs font-black uppercase transition-all ${activeTab === 'daily' ? 'bg-violet-600 text-white shadow-lg' : 'text-white/40 hover:text-white'}`}
+                  className={`px-6 py-2 rounded-xl text-xs font-black uppercase transition-all ${activeTab === 'daily' ? 'bg-violet-600 text-white shadow-lg' : theme === 'dark' ? 'text-white/40 hover:text-white' : 'text-slate-500 hover:text-slate-900'}`}
                 >
                   Daily Focus
                 </button>
                 <button 
                   onClick={() => setActiveTab('weekly')}
-                  className={`px-6 py-2 rounded-xl text-xs font-black uppercase transition-all ${activeTab === 'weekly' ? 'bg-violet-600 text-white shadow-lg' : 'text-white/40 hover:text-white'}`}
+                  className={`px-6 py-2 rounded-xl text-xs font-black uppercase transition-all ${activeTab === 'weekly' ? 'bg-violet-600 text-white shadow-lg' : theme === 'dark' ? 'text-white/40 hover:text-white' : 'text-slate-500 hover:text-slate-900'}`}
                 >
                   Weekly Review
                 </button>
               </div>
 
-              <div className="flex bg-white/5 backdrop-blur-md p-2 rounded-2xl border border-white/10 shadow-xl gap-4 px-6 items-center">
+              <div className={`flex backdrop-blur-md p-2 rounded-2xl border shadow-xl gap-4 px-6 items-center ${theme === 'dark' ? 'bg-white/5 border-white/10' : 'bg-slate-100 border-slate-200'}`}>
                 <div className="flex flex-col">
-                  <span className="text-[10px] font-bold text-violet-400/60 uppercase tracking-widest">Weekly Goal</span>
-                  <span className="text-lg font-black text-white">
-                    {Math.floor(weeklyTotalMinutes / 60)}h <span className="text-white/20">/ 10h</span>
+                  <span className={`text-[10px] font-bold uppercase tracking-widest ${theme === 'dark' ? 'text-violet-400/60' : 'text-violet-600/60'}`}>Weekly Goal</span>
+                  <span className={`text-lg font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                    {Math.floor(weeklyTotalMinutes / 60)}h <span className={`${theme === 'dark' ? 'text-white/20' : 'text-slate-300'}`}>/ 10h</span>
                   </span>
                 </div>
-                <div className="w-px h-10 bg-white/10" />
+                <div className={`w-px h-10 ${theme === 'dark' ? 'bg-white/10' : 'bg-slate-200'}`} />
                 <div className="flex flex-col">
-                  <span className="text-[10px] font-bold text-violet-400/60 uppercase tracking-widest">Submissions</span>
+                  <span className={`text-[10px] font-bold uppercase tracking-widest ${theme === 'dark' ? 'text-violet-400/60' : 'text-violet-600/60'}`}>Submissions</span>
                   <span className="text-lg font-black text-violet-400">{submissions.length}</span>
                 </div>
               </div>
@@ -236,36 +276,39 @@ export default function App() {
         </header>
 
         {profile?.community_role === 'admin' ? (
-          <AdminDashboard />
+          <AdminDashboard theme={theme} />
         ) : activeTab === 'profile' ? (
           <ProfileEditor 
             profile={profile!} 
             onUpdate={setProfile} 
             onBack={() => setActiveTab('daily')} 
+            theme={theme}
           />
         ) : activeTab === 'weekly' ? (
           <WeeklyReviewSystem 
             userId={session.user.id} 
             submissions={submissions}
             currentStreak={calculateStreak(submissions).current}
+            theme={theme}
           />
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-8">
-              <SubmissionForm userId={session.user.id} onSuccess={onSubmissionSuccess} />
+              <SubmissionForm userId={session.user.id} theme={theme} onSuccess={onSubmissionSuccess} />
               
               <AnimatePresence>
                 {generatedPosts && (
                   <PublicGenerator 
                     posts={generatedPosts} 
                     onClose={() => setGeneratedPosts(null)} 
+                    theme={theme}
                   />
                 )}
               </AnimatePresence>
 
               <section className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-bold flex items-center gap-2 text-white">
+                  <h2 className={`text-xl font-bold flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
                     <Calendar size={20} className="text-violet-400" />
                     Past Submissions
                   </h2>
@@ -273,9 +316,9 @@ export default function App() {
                 
                 <div className="space-y-3">
                   {submissions.length === 0 ? (
-                    <div className="p-12 border-2 border-dashed border-white/5 rounded-2xl text-center">
-                      <Plus className="mx-auto text-white/10 mb-2" size={32} />
-                      <p className="text-white/20 font-medium text-sm">No work documented yet. Start now.</p>
+                    <div className={`p-12 border-2 border-dashed rounded-2xl text-center ${theme === 'dark' ? 'border-white/5' : 'border-slate-100'}`}>
+                      <Plus className={`mx-auto mb-2 ${theme === 'dark' ? 'text-white/10' : 'text-slate-200'}`} size={32} />
+                      <p className={`font-medium text-sm ${theme === 'dark' ? 'text-white/20' : 'text-slate-400'}`}>No work documented yet. Start now.</p>
                     </div>
                   ) : (
                     submissions.map((s) => (
@@ -283,15 +326,15 @@ export default function App() {
                         key={s.id}
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
-                        className="bg-white/5 backdrop-blur-sm p-5 rounded-2xl border border-white/10 shadow-sm hover:border-violet-500/50 transition-all flex items-center justify-between group"
+                        className={`backdrop-blur-sm p-5 rounded-2xl border shadow-sm transition-all flex items-center justify-between group ${theme === 'dark' ? 'bg-white/5 border-white/10 hover:border-violet-500/50' : 'bg-white border-slate-200 hover:border-violet-300'}`}
                       >
                         <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-violet-500/10 rounded-xl flex items-center justify-center text-violet-400 group-hover:bg-violet-600 group-hover:text-white transition-colors">
+                          <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${theme === 'dark' ? 'bg-violet-500/10 text-violet-400 group-hover:bg-violet-600 group-hover:text-white' : 'bg-violet-50 text-violet-600 group-hover:bg-violet-100'}`}>
                             <Clock size={24} />
                           </div>
                           <div>
-                            <h4 className="font-bold text-white">{s.task_completed}</h4>
-                            <div className="flex items-center gap-2 text-xs text-white/40">
+                            <h4 className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{s.task_completed}</h4>
+                            <div className={`flex items-center gap-2 text-xs ${theme === 'dark' ? 'text-white/40' : 'text-slate-500'}`}>
                               <span>{format(new Date(s.submitted_date), 'MMM d, yyyy')}</span>
                               <span>•</span>
                               <span className="font-bold text-violet-400">{s.time_spent}m</span>
@@ -304,7 +347,7 @@ export default function App() {
                               href={s.proof_url}
                               target="_blank"
                               rel="noreferrer"
-                              className="p-2 bg-white/5 text-white/40 rounded-lg hover:bg-violet-500/20 hover:text-violet-400 transition-all"
+                              className={`p-2 rounded-lg transition-all ${theme === 'dark' ? 'bg-white/5 text-white/40 hover:bg-violet-500/20 hover:text-violet-400' : 'bg-slate-100 text-slate-400 hover:bg-violet-50 hover:text-violet-600'}`}
                             >
                               <ChevronRight size={20} />
                             </a>
@@ -321,14 +364,15 @@ export default function App() {
               <StreakDisplay 
                 current={calculateStreak(submissions).current} 
                 longest={calculateStreak(submissions).longest} 
+                theme={theme}
               />
               
-              <ConsistencyTracker submissions={submissions} />
+              <ConsistencyTracker submissions={submissions} theme={theme} />
               
-              <div className="bg-white/5 backdrop-blur-md text-white rounded-2xl p-6 shadow-xl border border-white/10 relative overflow-hidden">
+              <div className={`backdrop-blur-md rounded-2xl p-6 shadow-xl border relative overflow-hidden ${theme === 'dark' ? 'bg-white/5 text-white border-white/10' : 'bg-white text-slate-900 border-slate-200'}`}>
                 <div className="relative z-10">
                   <h3 className="font-black text-xl mb-4 italic">The Mastery Mandate</h3>
-                  <ul className="space-y-4 text-sm text-violet-200/60 font-medium">
+                  <ul className={`space-y-4 text-sm font-medium ${theme === 'dark' ? 'text-violet-200/60' : 'text-slate-600'}`}>
                     <li className="flex gap-2">
                       <span className="text-violet-400 font-bold">01</span>
                       <span>Execution is greater than intent. Always.</span>

@@ -10,10 +10,11 @@ import { toast } from 'react-hot-toast';
 
 interface SubmissionFormProps {
   userId: string;
+  theme: 'dark' | 'light';
   onSuccess: (posts: { linkedin: string; whatsapp: string }) => void;
 }
 
-export const SubmissionForm: React.FC<SubmissionFormProps> = ({ userId, onSuccess }) => {
+export const SubmissionForm: React.FC<SubmissionFormProps> = ({ userId, onSuccess, theme }) => {
   const [loading, setLoading] = useState(false);
   const [taskCompleted, setTaskCompleted] = useState('');
   const [timeSpent, setTimeSpent] = useState('');
@@ -96,18 +97,18 @@ export const SubmissionForm: React.FC<SubmissionFormProps> = ({ userId, onSucces
   };
 
   return (
-    <div className="bg-white/5 backdrop-blur-md rounded-2xl p-6 shadow-xl border border-white/10">
+    <div className={`backdrop-blur-md rounded-2xl p-6 shadow-xl border transition-all ${theme === 'dark' ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200'}`}>
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
-          <CheckCircle2 className="text-emerald-400" size={24} />
-          <h2 className="text-xl font-bold text-white">Daily Accountability</h2>
+          <CheckCircle2 className="text-emerald-500" size={24} />
+          <h2 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Daily Accountability</h2>
         </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-bold text-violet-400/60 uppercase tracking-widest mb-1.5">
+            <label className={`block text-xs font-bold uppercase tracking-widest mb-1.5 ${theme === 'dark' ? 'text-violet-400/60' : 'text-slate-500'}`}>
               Task Completed
             </label>
             <input
@@ -115,12 +116,12 @@ export const SubmissionForm: React.FC<SubmissionFormProps> = ({ userId, onSucces
               required
               value={taskCompleted}
               onChange={(e) => setTaskCompleted(e.target.value)}
-              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-violet-500 outline-none transition-all text-white placeholder:text-white/20"
+              className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-violet-500 outline-none transition-all ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white placeholder:text-white/20' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400'}`}
               placeholder="e.g. React Module 1"
             />
           </div>
           <div>
-            <label className="block text-xs font-bold text-violet-400/60 uppercase tracking-widest mb-1.5">
+            <label className={`block text-xs font-bold uppercase tracking-widest mb-1.5 ${theme === 'dark' ? 'text-violet-400/60' : 'text-slate-500'}`}>
               Time Spent (Minutes)
             </label>
             <input
@@ -128,14 +129,14 @@ export const SubmissionForm: React.FC<SubmissionFormProps> = ({ userId, onSucces
               required
               value={timeSpent}
               onChange={(e) => setTimeSpent(e.target.value)}
-              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-violet-500 outline-none transition-all text-white placeholder:text-white/20"
+              className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-violet-500 outline-none transition-all ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white placeholder:text-white/20' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400'}`}
               placeholder="e.g. 45"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-violet-400/60 uppercase tracking-widest mb-1.5">
+          <label className={`block text-xs font-bold uppercase tracking-widest mb-1.5 ${theme === 'dark' ? 'text-violet-400/60' : 'text-slate-500'}`}>
             Reflection (What did you learn?)
           </label>
           <textarea
@@ -143,28 +144,28 @@ export const SubmissionForm: React.FC<SubmissionFormProps> = ({ userId, onSucces
             value={reflection}
             onChange={(e) => setReflection(e.target.value)}
             rows={3}
-            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-violet-500 outline-none transition-all resize-none text-white placeholder:text-white/20"
+            className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-violet-500 outline-none transition-all resize-none ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white placeholder:text-white/20' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400'}`}
             placeholder="Key takeaways or breakthroughs..."
           />
         </div>
 
         <div>
           <div className="flex items-center justify-between mb-2">
-            <label className="block text-xs font-bold text-violet-400/60 uppercase tracking-widest">
+            <label className={`block text-xs font-bold uppercase tracking-widest ${theme === 'dark' ? 'text-violet-400/60' : 'text-slate-500'}`}>
               Proof of Work
             </label>
-            <div className="flex bg-white/5 p-1 rounded-lg border border-white/10 shadow-inner">
+            <div className={`flex p-1 rounded-lg border shadow-inner ${theme === 'dark' ? 'bg-white/5 border-white/10' : 'bg-slate-100 border-slate-200'}`}>
               <button
                 type="button"
                 onClick={() => setProofType('link')}
-                className={`px-3 py-1 rounded-md text-[10px] font-bold uppercase transition-all ${proofType === 'link' ? 'bg-violet-600 text-white' : 'text-white/40 hover:text-white'}`}
+                className={`px-3 py-1 rounded-md text-[10px] font-bold uppercase transition-all ${proofType === 'link' ? 'bg-violet-600 text-white' : theme === 'dark' ? 'text-white/40 hover:text-white' : 'text-slate-500 hover:text-slate-700'}`}
               >
                 URL Link
               </button>
               <button
                 type="button"
                 onClick={() => setProofType('screenshot')}
-                className={`px-3 py-1 rounded-md text-[10px] font-bold uppercase transition-all ${proofType === 'screenshot' ? 'bg-violet-600 text-white' : 'text-white/40 hover:text-white'}`}
+                className={`px-3 py-1 rounded-md text-[10px] font-bold uppercase transition-all ${proofType === 'screenshot' ? 'bg-violet-600 text-white' : theme === 'dark' ? 'text-white/40 hover:text-white' : 'text-slate-500 hover:text-slate-700'}`}
               >
                 Screenshot
               </button>
@@ -174,13 +175,13 @@ export const SubmissionForm: React.FC<SubmissionFormProps> = ({ userId, onSucces
           <div className="relative">
             {proofType === 'link' ? (
               <>
-                <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-white/20" size={18} />
+                <LinkIcon className={`absolute left-3 top-1/2 -translate-y-1/2 ${theme === 'dark' ? 'text-white/20' : 'text-slate-300'}`} size={18} />
                 <input
                   type="url"
                   required
                   value={proofUrl}
                   onChange={(e) => setProofUrl(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-violet-500 outline-none transition-all text-white placeholder:text-white/20"
+                  className={`w-full pl-10 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-violet-500 outline-none transition-all ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white placeholder:text-white/20' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400'}`}
                   placeholder="Github repo, LinkedIn, or Screenshot URL"
                 />
               </>
@@ -196,7 +197,7 @@ export const SubmissionForm: React.FC<SubmissionFormProps> = ({ userId, onSucces
                 />
                 <label
                   htmlFor="screenshot-upload"
-                  className="w-full h-12 flex items-center justify-center gap-2 bg-white/5 border border-white/10 border-dashed rounded-xl cursor-pointer hover:bg-white/10 hover:border-violet-500/50 transition-all text-white/60 font-medium"
+                  className={`w-full h-12 flex items-center justify-center gap-2 border border-dashed rounded-xl cursor-pointer transition-all ${theme === 'dark' ? 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-violet-500/50 text-white/60' : 'bg-slate-50 border-slate-300 hover:bg-slate-100 hover:border-violet-400 text-slate-600'}`}
                 >
                   <ImageIcon size={20} className="text-violet-400" />
                   {file ? file.name : 'Upload screenshot proof'}

@@ -6,9 +6,10 @@ import { motion } from 'motion/react';
 interface StreakDisplayProps {
   current: number;
   longest: number;
+  theme?: 'dark' | 'light';
 }
 
-export const StreakDisplay: React.FC<StreakDisplayProps> = ({ current, longest }) => {
+export const StreakDisplay: React.FC<StreakDisplayProps> = ({ current, longest, theme = 'dark' }) => {
   return (
     <div className="grid grid-cols-2 gap-4">
       <motion.div
@@ -28,14 +29,14 @@ export const StreakDisplay: React.FC<StreakDisplayProps> = ({ current, longest }
 
       <motion.div
         whileHover={{ scale: 1.02 }}
-        className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-6 flex flex-col items-center justify-center text-center group"
+        className={`backdrop-blur-md border rounded-2xl p-6 flex flex-col items-center justify-center text-center group ${theme === 'dark' ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200'}`}
       >
-        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-violet-400/60 mb-1">Longest Streak</span>
+        <span className={`text-[10px] font-bold uppercase tracking-[0.2em] mb-1 ${theme === 'dark' ? 'text-violet-400/60' : 'text-slate-400'}`}>Longest Streak</span>
         <div className="flex items-baseline gap-1">
-          <span className="text-4xl font-black text-white">{longest}</span>
+          <span className={`text-4xl font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{longest}</span>
           <span className="font-bold text-violet-400 uppercase text-xs">Best</span>
         </div>
-        <Trophy className="mt-2 text-white/10 group-hover:text-yellow-500 transition-colors" size={24} />
+        <Trophy className={`mt-2 transition-colors ${theme === 'dark' ? 'text-white/10' : 'text-slate-200'} group-hover:text-yellow-500`} size={24} />
       </motion.div>
     </div>
   );

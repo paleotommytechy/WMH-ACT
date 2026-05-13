@@ -5,7 +5,11 @@ import { BadgeAlert, Users, TrendingUp, Clock, ExternalLink, Calendar } from 'lu
 import { motion } from 'motion/react';
 import { format } from 'date-fns';
 
-export const AdminDashboard: React.FC = () => {
+interface AdminDashboardProps {
+  theme?: 'dark' | 'light';
+}
+
+export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark' }) => {
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState<any[]>([]);
   const [stats, setStats] = useState({ active: 0, atRisk: 0, total: 0 });
@@ -88,42 +92,42 @@ export const AdminDashboard: React.FC = () => {
   };
 
   if (loading) return <div className="space-y-4">
-    <div className="h-20 bg-white/5 rounded-2xl animate-pulse" />
-    <div className="h-64 bg-white/5 rounded-2xl animate-pulse" />
+    <div className={`h-20 rounded-2xl animate-pulse ${theme === 'dark' ? 'bg-white/5' : 'bg-slate-100'}`} />
+    <div className={`h-64 rounded-2xl animate-pulse ${theme === 'dark' ? 'bg-white/5' : 'bg-slate-100'}`} />
   </div>;
 
   return (
     <div className="space-y-8">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white/5 backdrop-blur-md p-6 rounded-2xl border border-white/10 shadow-sm flex items-center justify-between">
+        <div className={`backdrop-blur-md p-6 rounded-2xl border shadow-sm flex items-center justify-between transition-all ${theme === 'dark' ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200'}`}>
           <div>
-            <span className="text-xs font-bold text-violet-400/60 uppercase tracking-widest">Active Today</span>
-            <div className="text-3xl font-black text-emerald-400">{stats.active}</div>
+            <span className={`text-xs font-bold uppercase tracking-widest ${theme === 'dark' ? 'text-violet-400/60' : 'text-slate-400'}`}>Active Today</span>
+            <div className={`text-3xl font-black ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-500'}`}>{stats.active}</div>
           </div>
-          <TrendingUp className="text-emerald-400/10" size={48} />
+          <TrendingUp className={theme === 'dark' ? 'text-emerald-400/10' : 'text-emerald-500/20'} size={48} />
         </div>
-        <div className="bg-white/5 backdrop-blur-md p-6 rounded-2xl border border-white/10 shadow-sm flex items-center justify-between">
+        <div className={`backdrop-blur-md p-6 rounded-2xl border shadow-sm flex items-center justify-between transition-all ${theme === 'dark' ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200'}`}>
           <div>
-            <span className="text-xs font-bold text-violet-400/60 uppercase tracking-widest">At Risk</span>
-            <div className="text-3xl font-black text-orange-400">{stats.atRisk}</div>
+            <span className={`text-xs font-bold uppercase tracking-widest ${theme === 'dark' ? 'text-violet-400/60' : 'text-slate-400'}`}>At Risk</span>
+            <div className={`text-3xl font-black ${theme === 'dark' ? 'text-orange-400' : 'text-orange-500'}`}>{stats.atRisk}</div>
           </div>
-          <BadgeAlert className="text-orange-400/10" size={48} />
+          <BadgeAlert className={theme === 'dark' ? 'text-orange-400/10' : 'text-orange-500/20'} size={48} />
         </div>
-        <div className="bg-white/5 backdrop-blur-md p-6 rounded-2xl border border-white/10 shadow-sm flex items-center justify-between">
+        <div className={`backdrop-blur-md p-6 rounded-2xl border shadow-sm flex items-center justify-between transition-all ${theme === 'dark' ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200'}`}>
           <div>
-            <span className="text-xs font-bold text-violet-400/60 uppercase tracking-widest">Total Students</span>
-            <div className="text-3xl font-black text-violet-400">{stats.total}</div>
+            <span className={`text-xs font-bold uppercase tracking-widest ${theme === 'dark' ? 'text-violet-400/60' : 'text-slate-400'}`}>Total Students</span>
+            <div className={`text-3xl font-black ${theme === 'dark' ? 'text-violet-400' : 'text-violet-600'}`}>{stats.total}</div>
           </div>
-          <Users className="text-violet-400/10" size={48} />
+          <Users className={theme === 'dark' ? 'text-violet-400/10' : 'text-violet-600/20'} size={48} />
         </div>
       </div>
 
-      <div className="bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-white/5 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-white">User Directory</h2>
+      <div className={`backdrop-blur-md rounded-2xl border shadow-sm overflow-hidden transition-all ${theme === 'dark' ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200'}`}>
+        <div className={`p-6 border-b flex items-center justify-between ${theme === 'dark' ? 'border-white/5' : 'border-slate-100'}`}>
+          <h2 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>User Directory</h2>
           <button 
             onClick={fetchData}
-            className="text-xs font-bold text-violet-400 hover:text-white transition-colors uppercase tracking-widest"
+            className={`text-xs font-bold transition-colors uppercase tracking-widest ${theme === 'dark' ? 'text-violet-400 hover:text-white' : 'text-violet-600 hover:text-slate-900'}`}
           >
             Refresh
           </button>
@@ -131,7 +135,7 @@ export const AdminDashboard: React.FC = () => {
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
-              <tr className="bg-white/5 text-violet-300/40 text-[10px] font-bold uppercase tracking-widest border-b border-white/5">
+              <tr className={`text-[10px] font-bold uppercase tracking-widest border-b ${theme === 'dark' ? 'bg-white/5 text-violet-300/40 border-white/5' : 'bg-slate-50 text-slate-400 border-slate-200'}`}>
                 <th className="px-6 py-4">Student</th>
                 <th className="px-6 py-4 text-center">Status</th>
                 <th className="px-6 py-4 text-center">Streak</th>
@@ -139,32 +143,32 @@ export const AdminDashboard: React.FC = () => {
                 <th className="px-6 py-4 text-center">Last Active</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5">
+            <tbody className={`divide-y ${theme === 'dark' ? 'divide-white/5' : 'divide-slate-100'}`}>
               {users.map((u) => (
-                <tr key={u.id} className="hover:bg-white/5 transition-colors cursor-pointer group">
+                <tr key={u.id} className={`transition-colors cursor-pointer group ${theme === 'dark' ? 'hover:bg-white/5' : 'hover:bg-slate-50'}`}>
                   <td className="px-6 py-4">
-                    <div className="font-bold text-white">{u.full_name}</div>
-                    <div className="text-[10px] text-white/40">{u.email}</div>
+                    <div className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{u.full_name}</div>
+                    <div className={`text-[10px] ${theme === 'dark' ? 'text-white/40' : 'text-slate-400'}`}>{u.email}</div>
                   </td>
                   <td className="px-6 py-4 text-center">
                     <span className={`
                       text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wider
-                      ${u.status === 'active' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 
-                        u.status === 'at-risk' ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20' : 
-                        'bg-rose-500/10 text-rose-400 border border-rose-500/20'}
+                      ${u.status === 'active' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 
+                        u.status === 'at-risk' ? 'bg-orange-500/10 text-orange-500 border border-orange-500/20' : 
+                        'bg-rose-500/10 text-rose-500 border border-rose-500/20'}
                     `}>
                       {u.status}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-center">
-                    <div className="flex items-center justify-center gap-1 font-black text-violet-400">
+                    <div className={`flex items-center justify-center gap-1 font-black ${theme === 'dark' ? 'text-violet-400' : 'text-violet-600'}`}>
                       <span>{u.currentStreak}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-center font-bold text-white/60">
+                  <td className={`px-6 py-4 text-center font-bold ${theme === 'dark' ? 'text-white/60' : 'text-slate-500'}`}>
                     {u.totalHours.toFixed(1)}h
                   </td>
-                  <td className="px-6 py-4 text-center text-xs text-white/30 font-medium">
+                  <td className={`px-6 py-4 text-center text-xs font-medium ${theme === 'dark' ? 'text-white/30' : 'text-slate-400'}`}>
                     {u.lastActive ? format(new Date(u.lastActive), 'MMM d, yyyy') : 'Never'}
                   </td>
                 </tr>

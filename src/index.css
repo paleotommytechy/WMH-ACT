@@ -1,1 +1,29 @@
 @import "tailwindcss";
+
+@layer base {
+  body {
+    @apply transition-colors duration-300;
+  }
+}
+
+@theme {
+  --color-card-bg: var(--card-bg);
+  --color-card-border: var(--card-border);
+}
+
+:root {
+  --card-bg: rgba(255, 255, 255, 1);
+  --card-border: rgba(226, 232, 240, 1);
+}
+
+.dark {
+  --card-bg: rgba(255, 255, 255, 0.05);
+  --card-border: rgba(255, 255, 255, 0.1);
+  background-color: #130722;
+  color: #fff;
+}
+
+.light {
+  background-color: #f8fafc;
+  color: #0f172a;
+}
