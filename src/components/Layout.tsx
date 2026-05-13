@@ -40,10 +40,10 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, profile, hideNav
                 <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-violet-900/30 rounded-full border border-violet-700/50">
                   <UserIcon size={14} className="text-violet-400" />
                   <span className="text-xs font-medium text-violet-200">
-                    {profile?.name || user.email}
+                    {profile?.full_name || user.email}
                   </span>
                   <span className="text-[10px] px-1.5 py-0.5 bg-violet-600 text-white rounded-md uppercase font-bold tracking-wider">
-                    {profile?.role || 'student'}
+                    {profile?.community_role || 'member'}
                   </span>
                 </div>
                 <button

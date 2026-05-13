@@ -17,31 +17,10 @@ export const supabase = createClient(
 export type Database = {
   public: {
     Tables: {
-      users: {
-        Row: {
-          id: string;
-          email: string;
-          name: string;
-          role: 'student' | 'admin';
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: {
-          id: string;
-          email: string;
-          name: string;
-          role?: 'student' | 'admin';
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: {
-          id?: string;
-          email?: string;
-          name?: string;
-          role?: 'student' | 'admin';
-          created_at?: string;
-          updated_at?: string;
-        };
+      profiles: {
+        Row: import('./types').Profile;
+        Insert: Partial<import('./types').Profile> & { id: string; email: string };
+        Update: Partial<import('./types').Profile>;
       };
       submissions: {
         Row: {

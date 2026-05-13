@@ -6,19 +6,24 @@ import { AuthForm } from './components/AuthForm';
 import { SubmissionForm } from './components/SubmissionForm';
 import { StreakDisplay } from './components/StreakDisplay';
 import { ConsistencyTracker } from './components/ConsistencyTracker';
+import { WeeklyReviewSystem } from './components/WeeklyReviewSystem';
 import { PublicGenerator } from './components/PublicGenerator';
 import { AdminDashboard } from './components/AdminDashboard';
-import { Loader2, Plus, Calendar, Clock, ChevronRight, TrendingUp } from 'lucide-react';
+import { ProfileSetup } from './components/ProfileSetup';
+import { Loader2, Plus, Calendar, Clock, ChevronRight, TrendingUp, Shield } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format, startOfWeek, endOfWeek, isSameWeek } from 'date-fns';
-import { Toaster } from 'react-hot-toast';
+import { Toaster, toast } from 'react-hot-toast';
+import { Profile } from '@/src/lib/types';
 
 export default function App() {
   const [session, setSession] = useState<any>(null);
-  const [profile, setProfile] = useState<any>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [submissions, setSubmissions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [generatedPosts, setGeneratedPosts] = useState<{ linkedin: string; whatsapp: string } | null>(null);
+
+  const [activeTab, setActiveTab] = useState<'daily' | 'weekly'>('daily');
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -42,46 +47,61 @@ export default function App() {
   const fetchProfile = async (userId: string) => {
     try {
       const { data, error } = await supabase
-        .from('users')
+        .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single();
+        .maybeSingle(); 
       
-      if (error && error.code !== 'PGRST116') throw error;
+      if (error) {
+        console.error('Profile fetch error details:', error);
+        if (error.message.includes('recursion')) {
+          toast.error('Security Error: Policy Loop detected in Supabase.');
+        }
+        return;
+      }
       
       if (!data) {
-        // Create user if not exists
-        const { data: newUser, error: createError } = await supabase
-          .from('users')
+        // This case should be handled by the database trigger, but fallback for safety
+        const { data: newProfile, error: createError } = await supabase
+          .from('profiles')
           .insert([{ 
             id: userId, 
-            name: session?.user?.user_metadata?.full_name || session?.user?.email?.split('@')[0] || 'User',
-            email: session?.user?.email || ''
+            full_name: session?.user?.user_metadata?.full_name || session?.user?.email?.split('@')[0] || 'User',
+            email: session?.user?.email || '',
+            username: session?.user?.email?.split('@')[0] + Math.floor(Math.random() * 1000)
           }])
           .select()
           .single();
-        if (createError) throw createError;
-        setProfile(newUser);
+        if (createError) console.error('Profile creation error:', createError);
+        else setProfile(newProfile as Profile);
       } else {
-        setProfile(data);
+        setProfile(data as Profile);
       }
       
       fetchSubmissions(userId);
     } catch (err) {
       console.error('Profile fetch error:', err);
+    } finally {
       setLoading(false);
     }
   };
 
   const fetchSubmissions = async (userId: string) => {
-    const { data, error } = await supabase
-      .from('submissions')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
-    
-    if (!error) setSubmissions(data);
-    setLoading(false);
+    try {
+      const { data, error } = await supabase
+        .from('submissions')
+        .select('*')
+        .eq('user_id', userId)
+        .order('submitted_date', { ascending: false });
+      
+      if (error) {
+        console.error('Submissions fetch error:', error);
+        return;
+      }
+      setSubmissions(data || []);
+    } catch (err) {
+      console.error('Fetch error:', err);
+    }
   };
 
   const onSubmissionSuccess = (posts: { linkedin: string; whatsapp: string }) => {
@@ -153,10 +173,14 @@ export default function App() {
 
   if (!session) return <AuthForm />;
 
+  if (profile && !profile.onboarding_completed) {
+    return <ProfileSetup userId={session.user.id} email={session.user.email} onComplete={setProfile} />;
+  }
+
   const weekStart = startOfWeek(new Date());
   const weekEnd = endOfWeek(new Date());
   const weeklyTotalMinutes = submissions
-    .filter(s => isSameWeek(new Date(s.created_at), new Date()))
+    .filter(s => isSameWeek(new Date(s.submitted_date), new Date()))
     .reduce((acc, s) => acc + s.time_spent, 0);
 
   return (
@@ -172,29 +196,52 @@ export default function App() {
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-black text-white">
-              Welcome, <span className="text-violet-400">{profile?.name?.split(' ')[0] || session?.user?.email?.split('@')[0] || 'User'}</span>
+              Welcome, <span className="text-violet-400">{profile?.full_name?.split(' ')[0] || session?.user?.email?.split('@')[0] || 'User'}</span>
             </h1>
             <p className="text-violet-200/60 font-medium">Efficiency is the only currency of mastery.</p>
           </div>
-          {profile?.role === 'student' && (
-            <div className="flex bg-white/5 backdrop-blur-md p-2 rounded-2xl border border-white/10 shadow-xl gap-4 px-6 items-center">
-              <div className="flex flex-col">
-                <span className="text-[10px] font-bold text-violet-400/60 uppercase tracking-widest">Weekly Goal</span>
-                <span className="text-lg font-black text-white">
-                  {Math.floor(weeklyTotalMinutes / 60)}h <span className="text-white/20">/ 10h</span>
-                </span>
+          {profile?.community_role === 'member' && (
+            <>
+              <div className="flex bg-white/5 backdrop-blur-md p-1 rounded-2xl border border-white/10 shadow-xl items-center">
+                <button 
+                  onClick={() => setActiveTab('daily')}
+                  className={`px-6 py-2 rounded-xl text-xs font-black uppercase transition-all ${activeTab === 'daily' ? 'bg-violet-600 text-white shadow-lg' : 'text-white/40 hover:text-white'}`}
+                >
+                  Daily Focus
+                </button>
+                <button 
+                  onClick={() => setActiveTab('weekly')}
+                  className={`px-6 py-2 rounded-xl text-xs font-black uppercase transition-all ${activeTab === 'weekly' ? 'bg-violet-600 text-white shadow-lg' : 'text-white/40 hover:text-white'}`}
+                >
+                  Weekly Review
+                </button>
               </div>
-              <div className="w-px h-10 bg-white/10" />
-              <div className="flex flex-col">
-                <span className="text-[10px] font-bold text-violet-400/60 uppercase tracking-widest">Submissions</span>
-                <span className="text-lg font-black text-violet-400">{submissions.length}</span>
+
+              <div className="flex bg-white/5 backdrop-blur-md p-2 rounded-2xl border border-white/10 shadow-xl gap-4 px-6 items-center">
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-bold text-violet-400/60 uppercase tracking-widest">Weekly Goal</span>
+                  <span className="text-lg font-black text-white">
+                    {Math.floor(weeklyTotalMinutes / 60)}h <span className="text-white/20">/ 10h</span>
+                  </span>
+                </div>
+                <div className="w-px h-10 bg-white/10" />
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-bold text-violet-400/60 uppercase tracking-widest">Submissions</span>
+                  <span className="text-lg font-black text-violet-400">{submissions.length}</span>
+                </div>
               </div>
-            </div>
+            </>
           )}
         </header>
 
-        {profile?.role === 'admin' ? (
+        {profile?.community_role === 'admin' ? (
           <AdminDashboard />
+        ) : activeTab === 'weekly' ? (
+          <WeeklyReviewSystem 
+            userId={session.user.id} 
+            submissions={submissions}
+            currentStreak={calculateStreak(submissions).current}
+          />
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-8">

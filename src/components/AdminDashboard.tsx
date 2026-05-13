@@ -18,7 +18,7 @@ export const AdminDashboard: React.FC = () => {
     setLoading(true);
     try {
       const { data: usersData, error: uError } = await supabase
-        .from('users')
+        .from('profiles')
         .select(`
           *,
           submissions (
@@ -27,7 +27,7 @@ export const AdminDashboard: React.FC = () => {
             time_spent
           )
         `)
-        .order('name');
+        .order('full_name');
 
       if (uError) throw uError;
 
@@ -143,7 +143,7 @@ export const AdminDashboard: React.FC = () => {
               {users.map((u) => (
                 <tr key={u.id} className="hover:bg-white/5 transition-colors cursor-pointer group">
                   <td className="px-6 py-4">
-                    <div className="font-bold text-white">{u.name}</div>
+                    <div className="font-bold text-white">{u.full_name}</div>
                     <div className="text-[10px] text-white/40">{u.email}</div>
                   </td>
                   <td className="px-6 py-4 text-center">
