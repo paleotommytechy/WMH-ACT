@@ -10,7 +10,8 @@ import { WeeklyReviewSystem } from './components/WeeklyReviewSystem';
 import { PublicGenerator } from './components/PublicGenerator';
 import { AdminDashboard } from './components/AdminDashboard';
 import { ProfileSetup } from './components/ProfileSetup';
-import { Loader2, Plus, Calendar, Clock, ChevronRight, TrendingUp, Shield } from 'lucide-react';
+import { ProfileEditor } from './components/ProfileEditor';
+import { Loader2, Plus, Calendar, Clock, ChevronRight, TrendingUp, Shield, User as UserIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format, startOfWeek, endOfWeek, isSameWeek } from 'date-fns';
 import { Toaster, toast } from 'react-hot-toast';
@@ -23,7 +24,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [generatedPosts, setGeneratedPosts] = useState<{ linkedin: string; whatsapp: string } | null>(null);
 
-  const [activeTab, setActiveTab] = useState<'daily' | 'weekly'>('daily');
+  const [activeTab, setActiveTab] = useState<'daily' | 'weekly' | 'profile'>('daily');
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -184,7 +185,7 @@ export default function App() {
     .reduce((acc, s) => acc + s.time_spent, 0);
 
   return (
-    <Layout user={session.user} profile={profile}>
+    <Layout user={session.user} profile={profile} onTabChange={setActiveTab}>
       <Toaster position="top-right" toastOptions={{
         style: {
           background: '#1e1b4b',
@@ -236,6 +237,12 @@ export default function App() {
 
         {profile?.community_role === 'admin' ? (
           <AdminDashboard />
+        ) : activeTab === 'profile' ? (
+          <ProfileEditor 
+            profile={profile!} 
+            onUpdate={setProfile} 
+            onBack={() => setActiveTab('daily')} 
+          />
         ) : activeTab === 'weekly' ? (
           <WeeklyReviewSystem 
             userId={session.user.id} 

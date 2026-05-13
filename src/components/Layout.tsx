@@ -8,9 +8,10 @@ interface LayoutProps {
   user?: any;
   profile?: any;
   hideNav?: boolean;
+  onTabChange?: (tab: 'daily' | 'weekly' | 'profile') => void;
 }
 
-export const Layout: React.FC<LayoutProps> = ({ children, user, profile, hideNav }) => {
+export const Layout: React.FC<LayoutProps> = ({ children, user, profile, hideNav, onTabChange }) => {
   const handleLogout = async () => {
     await supabase.auth.signOut();
   };
@@ -20,7 +21,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, profile, hideNav
       {!hideNav && (
         <nav className="bg-[#130722]/80 backdrop-blur-md border-b border-violet-900/50 sticky top-0 z-50">
           <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
-            <div className="flex items-center">
+            <div className="flex items-center cursor-pointer" onClick={() => onTabChange?.('daily')}>
               <img 
                 src="https://jnvpkyvtajegjuqnluzp.supabase.co/storage/v1/object/public/Wilson%20Mastery%20Hub%20images/logo-transparent.png" 
                 alt="WMH Logo" 
@@ -37,7 +38,10 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, profile, hideNav
 
             {user && (
               <div className="flex items-center gap-4">
-                <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-violet-900/30 rounded-full border border-violet-700/50">
+                <button 
+                  onClick={() => onTabChange?.('profile')}
+                  className="hidden md:flex items-center gap-2 px-3 py-1 bg-violet-900/30 rounded-full border border-violet-700/50 hover:bg-violet-800/40 transition-colors"
+                >
                   <UserIcon size={14} className="text-violet-400" />
                   <span className="text-xs font-medium text-violet-200">
                     {profile?.full_name || user.email}
@@ -45,7 +49,13 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, profile, hideNav
                   <span className="text-[10px] px-1.5 py-0.5 bg-violet-600 text-white rounded-md uppercase font-bold tracking-wider">
                     {profile?.community_role || 'member'}
                   </span>
-                </div>
+                </button>
+                <button
+                  onClick={() => onTabChange?.('profile')}
+                  className="md:hidden p-2 text-neutral-400 hover:text-white"
+                >
+                  <UserIcon size={20} />
+                </button>
                 <button
                   onClick={handleLogout}
                   className="p-2 text-neutral-400 hover:text-red-500 hover:bg-red-900/40 rounded-full transition-colors"
