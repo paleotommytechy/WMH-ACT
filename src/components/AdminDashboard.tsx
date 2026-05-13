@@ -6,14 +6,11 @@ import {
   Search, Filter, CheckCircle2, AlertCircle, MessageSquare, 
   BarChart3, LayoutDashboard, UserCheck, ShieldAlert, 
   Bell, FileText, ChevronRight, MoreVertical, Star,
-  Trash2, X, Send, Copy, RefreshCw, Lock, User, Mail
+  Trash2, X, Send, Copy, RefreshCw, Lock, User, Mail,
+  BrainCircuit, Zap, Target, Menu
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { format, subDays, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns';
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
-  LineChart, Line, AreaChart, Area, PieChart, Pie, Cell 
-} from 'recharts';
+import { format, subDays, startOfWeek, endOfWeek, eachDayOfInterval, isToday, isYesterday } from 'date-fns';
 import { Profile, Submission, SubmissionReview, Announcement } from '@/src/lib/types';
 import { toast } from 'react-hot-toast';
 
@@ -119,17 +116,13 @@ const InviteForm: React.FC<{ theme: 'dark' | 'light' }> = ({ theme }) => {
         </div>
         <div>
           <label className={`block text-xs font-bold uppercase tracking-widest mb-2 ${theme === 'dark' ? 'text-white/40' : 'text-slate-500'}`}>Track / Program</label>
-          <select 
+          <input 
+            type="text" 
+            placeholder="e.g. UI/UX Design, Python, etc."
             value={form.track}
             onChange={(e) => setForm({...form, track: e.target.value})}
             className={`w-full px-6 py-3 rounded-2xl border outline-none font-bold ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white focus:border-violet-500' : 'bg-slate-50 border-slate-200'}`}
-          >
-            <option>UI/UX Design</option>
-            <option>Frontend Development</option>
-            <option>Backend Development</option>
-            <option>Data Science</option>
-            <option>Digital Marketing</option>
-          </select>
+          />
         </div>
         <div>
           <label className={`block text-xs font-bold uppercase tracking-widest mb-2 ${theme === 'dark' ? 'text-white/40' : 'text-slate-500'}`}>Role</label>
@@ -215,6 +208,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark' }
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [stats, setStats] = useState<any>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
   // Search & Filter States
   const [searchQuery, setSearchQuery] = useState('');
@@ -303,24 +297,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark' }
     }
   };
 
-  // Chart Data Preparation
-  const getLast7DaysData = () => {
-    const last7 = Array.from({ length: 7 }, (_, i) => {
-      const date = format(subDays(new Date(), 6 - i), 'yyyy-MM-dd');
-      const count = submissions.filter(s => s.submitted_date === date).length;
-      return { day: format(new Date(date), 'EEE'), count };
-    });
-    return last7;
+  // Mastery Intelligence Logic
+  const getIntelligenceInsights = () => {
+    const atRisk = users.filter(u => (u.weekly_consistency_score || 0) < 40 && u.community_role === 'student');
+    const topPerformers = [...users].filter(u => u.community_role === 'student').sort((a, b) => (b.current_streak || 0) - (a.current_streak || 0)).slice(0, 3);
+    
+    const todayCount = submissions.filter(s => isToday(new Date(s.submitted_date))).length;
+    const yesterdayCount = submissions.filter(s => isYesterday(new Date(s.submitted_date))).length;
+    
+    const velocity = yesterdayCount === 0 ? todayCount * 100 : ((todayCount - yesterdayCount) / yesterdayCount) * 100;
+    
+    return {
+      atRisk,
+      topPerformers,
+      todayCount,
+      velocity,
+      needsAttention: submissions.filter(s => !s.review).length
+    };
   };
 
-  const getTrackDistribution = () => {
-    const tracks: any = {};
-    users.forEach(u => {
-      const t = u.primary_track || 'Unknown';
-      tracks[t] = (tracks[t] || 0) + 1;
-    });
-    return Object.entries(tracks).map(([name, value]) => ({ name, value }));
-  };
+  const insights = getIntelligenceInsights();
 
   if (loading) {
     return (
@@ -331,16 +327,52 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark' }
   }
 
   const filteredUsers = users.filter(u => {
+    const isStudent = u.community_role === 'student' || u.community_role === 'member' || !u.community_role;
     const matchesSearch = u.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
                          u.email.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === 'all' || u.account_status === statusFilter;
-    return matchesSearch && matchesStatus;
+    return isStudent && matchesSearch && matchesStatus;
   });
 
   return (
-    <div className="flex flex-col lg:flex-row gap-8 min-h-screen pb-20">
+    <div className="flex flex-col lg:flex-row gap-8 min-h-screen pb-20 relative">
+      {/* Mobile Header with Burger */}
+      <div className="lg:hidden flex items-center justify-between mb-4 sticky top-0 z-40 bg-inherit pt-4">
+        <h2 className={`text-xl font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Admin Panel</h2>
+        <button 
+          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+          className={`p-3 rounded-xl border ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'}`}
+        >
+          {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
+        </button>
+      </div>
+
+      {/* Mobile Sidebar Overlay */}
+      <AnimatePresence>
+        {isSidebarOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setIsSidebarOpen(false)}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
+          />
+        )}
+      </AnimatePresence>
+
       {/* Sidebar Navigation */}
-      <aside className="w-full lg:w-64 space-y-2">
+      <aside className={`
+        fixed inset-y-0 left-0 z-50 w-72 transform transition-transform duration-300 lg:relative lg:translate-x-0 lg:w-64 space-y-2 p-6 lg:p-0
+        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+        ${theme === 'dark' ? 'bg-[#0f0c14] lg:bg-transparent' : 'bg-white lg:bg-transparent'}
+      `}>
+        <div className="flex items-center justify-between lg:hidden mb-10">
+          <h2 className={`text-2xl font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Menu</h2>
+          <button onClick={() => setIsSidebarOpen(false)} className={theme === 'dark' ? 'text-white/40' : 'text-slate-400'}>
+            <X size={24} />
+          </button>
+        </div>
+
         {[
           { id: 'overview', label: 'Overview', icon: LayoutDashboard },
           { id: 'students', label: 'Students', icon: Users },
@@ -351,17 +383,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark' }
         ].map((item) => (
           <button
             key={item.id}
-            onClick={() => setActiveView(item.id as AdminView)}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${
+            onClick={() => {
+              setActiveView(item.id as AdminView);
+              setIsSidebarOpen(false);
+            }}
+            className={`w-full flex items-center gap-3 px-4 py-4 rounded-2xl font-black transition-all ${
               activeView === item.id 
-                ? 'bg-violet-600 text-white shadow-lg' 
+                ? 'bg-violet-600 text-white shadow-lg shadow-violet-600/30' 
                 : theme === 'dark' ? 'text-white/40 hover:bg-white/5 hover:text-white' : 'text-slate-500 hover:bg-slate-100'
             }`}
           >
             <item.icon size={20} />
-            {item.label}
+            <span className="tracking-tight">{item.label}</span>
             {item.id === 'submissions' && submissions.filter(s => !s.review).length > 0 && (
-              <span className="ml-auto w-5 h-5 bg-rose-500 text-white text-[10px] rounded-full flex items-center justify-center">
+              <span className="ml-auto w-6 h-6 bg-rose-500 text-white text-[10px] rounded-full flex items-center justify-center font-black">
                 {submissions.filter(s => !s.review).length}
               </span>
             )}
@@ -398,52 +433,139 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark' }
                 ))}
               </div>
 
-              {/* Charts Row */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div className={`backdrop-blur-md p-6 rounded-3xl border ${theme === 'dark' ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200'}`}>
-                  <h3 className={`text-lg font-bold mb-6 flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-                    <BarChart3 className="text-violet-400" size={20} />
-                    7-Day Submission Trend
-                  </h3>
-                  <div className="h-[300px] min-w-0">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={getLast7DaysData()}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'} />
-                        <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: theme === 'dark' ? '#94a3b8' : '#64748b' }} />
-                        <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: theme === 'dark' ? '#94a3b8' : '#64748b' }} />
-                        <Tooltip 
-                          contentStyle={{ background: theme === 'dark' ? '#1e1b4b' : '#fff', border: 'none', borderRadius: '12px', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}
-                        />
-                        <Bar dataKey="count" fill="#8b5cf6" radius={[6, 6, 0, 0]} barSize={32} />
-                      </BarChart>
-                    </ResponsiveContainer>
+              {/* Mastery Intelligence Feed */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className={`lg:col-span-2 backdrop-blur-md p-8 rounded-3xl border ${theme === 'dark' ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200 shadow-sm'}`}>
+                  <div className="flex items-center justify-between mb-8">
+                    <div>
+                      <h3 className={`text-2xl font-black flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                        <BrainCircuit className="text-violet-400" size={28} />
+                        Mastery Intelligence
+                      </h3>
+                      <p className={`text-sm ${theme === 'dark' ? 'text-white/40' : 'text-slate-500'}`}>Real-time platform audit and actionable pattern recognition.</p>
+                    </div>
+                    <div className={`px-4 py-2 rounded-xl border flex items-center gap-2 ${theme === 'dark' ? 'bg-violet-500/10 border-violet-500/20 text-violet-400' : 'bg-violet-50 border-violet-100 text-violet-600'}`}>
+                      <div className="w-2 h-2 rounded-full bg-violet-500 animate-pulse" />
+                      <span className="text-[10px] font-black uppercase tracking-widest">Active Scan</span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className={`p-6 rounded-2xl border ${theme === 'dark' ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-200'}`}>
+                      <div className="flex items-center gap-3 mb-4">
+                        <Zap className="text-amber-400" size={20} />
+                        <h4 className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Submission Velocity</h4>
+                      </div>
+                      <div className="flex items-end gap-3">
+                        <span className={`text-4xl font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                          {insights.velocity > 0 ? '+' : ''}{insights.velocity.toFixed(0)}%
+                        </span>
+                        <span className={`text-xs font-bold mb-2 ${insights.velocity >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                          vs yesterday
+                        </span>
+                      </div>
+                      <p className={`text-xs mt-4 ${theme === 'dark' ? 'text-white/30' : 'text-slate-500'}`}>
+                        Students are submitting {insights.velocity >= 0 ? 'more' : 'less'} frequently today. 
+                        {insights.velocity > 20 ? ' Momentum is high.' : insights.velocity < -20 ? ' Intervention suggested.' : ''}
+                      </p>
+                    </div>
+
+                    <div className={`p-6 rounded-2xl border ${theme === 'dark' ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-200'}`}>
+                      <div className="flex items-center gap-3 mb-4">
+                        <Target className="text-emerald-400" size={20} />
+                        <h4 className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Goal Tracking</h4>
+                      </div>
+                      <div className="flex items-end gap-3">
+                        <span className={`text-4xl font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                          {insights.todayCount}
+                        </span>
+                        <span className={`text-xs font-bold mb-2 ${theme === 'dark' ? 'text-white/40' : 'text-slate-500'}`}>
+                          tasks locked today
+                        </span>
+                      </div>
+                      <p className={`text-xs mt-4 ${theme === 'dark' ? 'text-white/30' : 'text-slate-500'}`}>
+                        Current platform utilization is at {Math.min(100, (insights.todayCount / (users.length || 1) * 100)).toFixed(0)}% for the last 24 hours.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-8 pt-8 border-t border-white/10">
+                    <h4 className={`text-xs font-black uppercase tracking-widest mb-4 ${theme === 'dark' ? 'text-white/30' : 'text-slate-400'}`}>Critical Alerts</h4>
+                    <div className="space-y-3">
+                      {insights.atRisk.slice(0, 3).map(u => (
+                        <div key={u.id} className={`flex items-center justify-between p-4 rounded-xl border ${theme === 'dark' ? 'bg-rose-500/5 border-rose-500/20' : 'bg-rose-50 border-rose-100'}`}>
+                          <div className="flex items-center gap-3">
+                            <AlertCircle className="text-rose-400" size={18} />
+                            <div>
+                              <p className={`text-sm font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{u.full_name} is losing momentum</p>
+                              <p className={`text-[10px] ${theme === 'dark' ? 'text-white/40' : 'text-slate-500'}`}>Consistency dropped to {u.weekly_consistency_score}%</p>
+                            </div>
+                          </div>
+                          <button 
+                            onClick={() => {
+                              setActiveView('announcements');
+                              toast(`Drafting follow-up for ${u.full_name}`, { icon: '📝' });
+                            }}
+                            className="text-[10px] font-black uppercase text-rose-400 hover:underline"
+                          >
+                             Reach Out
+                          </button>
+                        </div>
+                      ))}
+                      {insights.atRisk.length === 0 && (
+                        <div className={`p-4 rounded-xl border border-emerald-500/20 bg-emerald-500/5 flex items-center gap-3`}>
+                          <CheckCircle2 className="text-emerald-400" size={18} />
+                          <p className="text-sm font-bold text-emerald-400">All students are maintaining healthy consistency levels.</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
-                <div className={`backdrop-blur-md p-6 rounded-3xl border ${theme === 'dark' ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200'}`}>
-                  <h3 className={`text-lg font-bold mb-6 flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-                    <TrendingUp className="text-emerald-400" size={20} />
-                    Track Distribution
-                  </h3>
-                  <div className="h-[300px] min-w-0">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={getTrackDistribution()}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={60}
-                          outerRadius={80}
-                          paddingAngle={5}
-                          dataKey="value"
-                        >
-                          {getTrackDistribution().map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={[ '#8b5cf6', '#10b981', '#3b82f6', '#f59e0b', '#ec4899' ][index % 5]} />
-                          ))}
-                        </Pie>
-                        <Tooltip />
-                      </PieChart>
-                    </ResponsiveContainer>
+                <div className="space-y-8">
+                  <div className={`backdrop-blur-md p-6 rounded-3xl border ${theme === 'dark' ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200 shadow-sm'}`}>
+                    <h3 className={`text-lg font-bold mb-6 flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                      <Star className="text-amber-400" size={20} />
+                      Top Performers
+                    </h3>
+                    <div className="space-y-4">
+                      {insights.topPerformers.map((u, i) => (
+                        <div key={u.id} className="flex items-center gap-4">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-xs ${i === 0 ? 'bg-amber-500' : 'bg-slate-500'} text-white`}>
+                            {i + 1}
+                          </div>
+                          <div className="flex-1">
+                            <p className={`text-sm font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{u.full_name}</p>
+                            <p className={`text-[10px] ${theme === 'dark' ? 'text-white/40' : 'text-slate-500'}`}>{u.current_streak} Day Streak</p>
+                          </div>
+                          <div className={`text-xs font-black ${theme === 'dark' ? 'text-violet-400' : 'text-violet-600'}`}>
+                            {u.weekly_consistency_score}%
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <button 
+                      onClick={() => setActiveView('announcements')}
+                      className={`w-full mt-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${theme === 'dark' ? 'bg-white/5 hover:bg-white/10 text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'}`}
+                    >
+                      Acknowledge Leaders
+                    </button>
+                  </div>
+
+                  <div className={`backdrop-blur-md p-6 rounded-3xl border ${theme === 'dark' ? 'bg-white/5 border-white/10 shadow-xl' : 'bg-violet-600 border-none shadow-violet-600/20 text-white'}`}>
+                    <h3 className={`text-lg font-bold mb-4 flex items-center gap-2 ${theme === 'dark' ? 'text-violet-400' : 'text-white'}`}>
+                      <ShieldAlert size={20} />
+                      System Audit
+                    </h3>
+                    <p className={`text-sm mb-6 ${theme === 'dark' ? 'text-white/60' : 'text-white/80'}`}>
+                      Platform integrity is currently high. {insights.needsAttention} submissions are awaiting your validation.
+                    </p>
+                    <button 
+                      onClick={() => setActiveView('submissions')}
+                      className={`w-full py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${theme === 'dark' ? 'bg-violet-600 hover:bg-violet-700 text-white' : 'bg-white text-violet-600 hover:shadow-lg'}`}
+                    >
+                      Go to Review Hub
+                    </button>
                   </div>
                 </div>
               </div>
