@@ -327,9 +327,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark' }
   }
 
   const filteredUsers = users.filter(u => {
-    const isStudent = u.community_role === 'student' || u.community_role === 'member' || !u.community_role;
+    // Show anyone who isn't an admin as a student for safety
+    const isStudent = u.community_role !== 'admin';
     const matchesSearch = u.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                         u.email.toLowerCase().includes(searchQuery.toLowerCase());
+                         u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         u.username?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === 'all' || u.account_status === statusFilter;
     return isStudent && matchesSearch && matchesStatus;
   });
