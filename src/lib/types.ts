@@ -1,5 +1,5 @@
 
-export type UserRole = 'student' | 'admin' | 'member';
+export type UserRole = 'student' | 'admin';
 export type SkillLevel = 'Beginner' | 'Intermediate' | 'Advanced';
 
 export interface Profile {
@@ -64,7 +64,7 @@ export interface Profile {
   public_profile_enabled: boolean;
   allow_leaderboard_visibility: boolean;
   allow_public_portfolio: boolean;
-  community_role: string;
+  community_role: UserRole;
   mentorship_status: string;
 
   // System
@@ -90,6 +90,29 @@ export interface Submission {
   proof_filename: string | null;
   submitted_date: string;
   created_at: string;
+  review?: SubmissionReview;
+}
+
+export interface SubmissionReview {
+  id: string;
+  submission_id: string;
+  admin_id: string;
+  status: 'pending' | 'reviewed' | 'flagged' | 'excellent';
+  admin_notes: string | null;
+  low_effort_detected: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Announcement {
+  id: string;
+  created_by: string;
+  title: string;
+  content: string;
+  is_active: boolean;
+  target_role: string;
+  created_at: string;
+  expires_at: string | null;
 }
 
 export interface UserStats {

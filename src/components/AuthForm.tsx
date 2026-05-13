@@ -27,8 +27,11 @@ export const AuthForm: React.FC<AuthFormProps> = ({ theme = 'dark', toggleTheme 
 
     try {
       if (isLogin) {
+        // Convert username to internal email if it's not already an email
+        const loginEmail = email.includes('@') ? email : `${email}@wmh.local`;
+        
         const { error } = await supabase.auth.signInWithPassword({
-          email,
+          email: loginEmail,
           password,
         });
         if (error) throw error;
@@ -37,18 +40,14 @@ export const AuthForm: React.FC<AuthFormProps> = ({ theme = 'dark', toggleTheme 
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
+          options: {
+            data: {
+              full_name: fullName || email.split('@')[0],
+            }
+          }
         });
         if (error) throw error;
 
-        if (data.user) {
-          const { error: profileError } = await supabase.from('profiles').insert([{
-            id: data.user.id,
-            email: email,
-            full_name: fullName || email.split('@')[0],
-            username: email.split('@')[0] + Math.floor(Math.random() * 1000)
-          }]);
-          if (profileError) console.error('Profile creation error:', profileError);
-        }
         toast.success('Account created successfully!');
       }
     } catch (err: any) {
@@ -111,17 +110,17 @@ export const AuthForm: React.FC<AuthFormProps> = ({ theme = 'dark', toggleTheme 
 
             <div>
               <label className={`block text-xs font-semibold uppercase tracking-wider mb-1.5 ml-1 ${theme === 'dark' ? 'text-violet-300' : 'text-violet-600'}`}>
-                Email Address
+                Username or Email
               </label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-violet-400" size={18} />
                 <input
-                  type="email"
+                  type="text"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className={`w-full pl-10 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none transition-all placeholder:text-neutral-600 ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
-                  placeholder="wilsonmasteryhub@gmail.com"
+                  placeholder="WMH_XXXX or email@example.com"
                 />
               </div>
             </div>
@@ -166,13 +165,11 @@ export const AuthForm: React.FC<AuthFormProps> = ({ theme = 'dark', toggleTheme 
             </button>
           </form>
 
+          {/* Signup disabled as per requirement */}
           <div className="mt-6 text-center">
-            <button
-              onClick={() => setIsLogin(!isLogin)}
-              className={`text-sm font-medium transition-colors ${theme === 'dark' ? 'text-violet-300 hover:text-white' : 'text-violet-600 hover:text-slate-900'}`}
-            >
-              {isLogin ? "Don't have an account? Sign Up" : 'Already have an account? Sign In'}
-            </button>
+            <p className={`text-sm font-medium ${theme === 'dark' ? 'text-violet-200/40' : 'text-slate-400'}`}>
+              Invite-only system. Contact an admin for access.
+            </p>
           </div>
         </motion.div>
       </div>

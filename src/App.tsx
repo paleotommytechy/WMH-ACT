@@ -206,7 +206,7 @@ export default function App() {
     );
   }
 
-  if (!session) return <AuthForm theme={theme} toggleTheme={toggleTheme} />;
+  if (!session) return <AuthForm theme="dark" toggleTheme={toggleTheme} />;
 
   if (profile && !profile.onboarding_completed) {
     return <ProfileSetup userId={session.user.id} email={session.user.email} onComplete={setProfile} theme={theme} />;
@@ -233,57 +233,63 @@ export default function App() {
           border: '1px solid rgba(255,255,255,0.1)',
         },
       }} />
-      <div className="space-y-10">
-        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className={`text-3xl font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-              Welcome, <span className="text-violet-400">{profile?.full_name?.split(' ')[0] || session?.user?.email?.split('@')[0] || 'User'}</span>
-            </h1>
-            <p className={`${theme === 'dark' ? 'text-violet-200/60' : 'text-slate-500'} font-medium`}>Efficiency is the only currency of mastery.</p>
-          </div>
-          {profile?.community_role === 'member' && (
-            <>
-              <div className={`flex backdrop-blur-md p-1 rounded-2xl border shadow-xl items-center ${theme === 'dark' ? 'bg-white/5 border-white/10' : 'bg-slate-100 border-slate-200'}`}>
-                <button 
-                  onClick={() => setActiveTab('daily')}
-                  className={`px-6 py-2 rounded-xl text-xs font-black uppercase transition-all ${activeTab === 'daily' ? 'bg-violet-600 text-white shadow-lg' : theme === 'dark' ? 'text-white/40 hover:text-white' : 'text-slate-500 hover:text-slate-900'}`}
-                >
-                  Daily Focus
-                </button>
-                <button 
-                  onClick={() => setActiveTab('weekly')}
-                  className={`px-6 py-2 rounded-xl text-xs font-black uppercase transition-all ${activeTab === 'weekly' ? 'bg-violet-600 text-white shadow-lg' : theme === 'dark' ? 'text-white/40 hover:text-white' : 'text-slate-500 hover:text-slate-900'}`}
-                >
-                  Weekly Review
-                </button>
-              </div>
+      
+      {activeTab === 'profile' ? (
+        <ProfileEditor 
+          profile={profile!} 
+          onUpdate={setProfile} 
+          onBack={() => setActiveTab(profile?.community_role === 'admin' ? 'daily' : 'daily')} 
+          theme={theme}
+        />
+      ) : (
+        <div className="space-y-10">
+          {profile?.community_role !== 'admin' && (
+            <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h1 className={`text-3xl font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                Welcome, <span className="text-violet-400">{profile?.full_name?.split(' ')[0] || session?.user?.email?.split('@')[0] || 'User'}</span>
+              </h1>
+              <p className={`${theme === 'dark' ? 'text-violet-200/60' : 'text-slate-500'} font-medium`}>
+                Efficiency is the only currency of mastery.
+              </p>
+            </div>
+            {profile?.community_role === 'student' && (
+              <>
+                <div className={`flex backdrop-blur-md p-1 rounded-2xl border shadow-xl items-center ${theme === 'dark' ? 'bg-white/5 border-white/10' : 'bg-slate-100 border-slate-200'}`}>
+                  <button 
+                    onClick={() => setActiveTab('daily')}
+                    className={`px-6 py-2 rounded-xl text-xs font-black uppercase transition-all ${activeTab === 'daily' ? 'bg-violet-600 text-white shadow-lg' : theme === 'dark' ? 'text-white/40 hover:text-white' : 'text-slate-500 hover:text-slate-900'}`}
+                  >
+                    Daily Focus
+                  </button>
+                  <button 
+                    onClick={() => setActiveTab('weekly')}
+                    className={`px-6 py-2 rounded-xl text-xs font-black uppercase transition-all ${activeTab === 'weekly' ? 'bg-violet-600 text-white shadow-lg' : theme === 'dark' ? 'text-white/40 hover:text-white' : 'text-slate-500 hover:text-slate-900'}`}
+                  >
+                    Weekly Review
+                  </button>
+                </div>
 
-              <div className={`flex backdrop-blur-md p-2 rounded-2xl border shadow-xl gap-4 px-6 items-center ${theme === 'dark' ? 'bg-white/5 border-white/10' : 'bg-slate-100 border-slate-200'}`}>
-                <div className="flex flex-col">
-                  <span className={`text-[10px] font-bold uppercase tracking-widest ${theme === 'dark' ? 'text-violet-400/60' : 'text-violet-600/60'}`}>Weekly Goal</span>
-                  <span className={`text-lg font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-                    {Math.floor(weeklyTotalMinutes / 60)}h <span className={`${theme === 'dark' ? 'text-white/20' : 'text-slate-300'}`}>/ 10h</span>
-                  </span>
+                <div className={`flex backdrop-blur-md p-2 rounded-2xl border shadow-xl gap-4 px-6 items-center ${theme === 'dark' ? 'bg-white/5 border-white/10' : 'bg-slate-100 border-slate-200'}`}>
+                  <div className="flex flex-col">
+                    <span className={`text-[10px] font-bold uppercase tracking-widest ${theme === 'dark' ? 'text-violet-400/60' : 'text-violet-600/60'}`}>Weekly Goal</span>
+                    <span className={`text-lg font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                      {Math.floor(weeklyTotalMinutes / 60)}h <span className={`${theme === 'dark' ? 'text-white/20' : 'text-slate-300'}`}>/ 10h</span>
+                    </span>
+                  </div>
+                  <div className={`w-px h-10 ${theme === 'dark' ? 'bg-white/10' : 'bg-slate-200'}`} />
+                  <div className="flex flex-col">
+                    <span className={`text-[10px] font-bold uppercase tracking-widest ${theme === 'dark' ? 'text-violet-400/60' : 'text-violet-600/60'}`}>Submissions</span>
+                    <span className="text-lg font-black text-violet-400">{submissions.length}</span>
+                  </div>
                 </div>
-                <div className={`w-px h-10 ${theme === 'dark' ? 'bg-white/10' : 'bg-slate-200'}`} />
-                <div className="flex flex-col">
-                  <span className={`text-[10px] font-bold uppercase tracking-widest ${theme === 'dark' ? 'text-violet-400/60' : 'text-violet-600/60'}`}>Submissions</span>
-                  <span className="text-lg font-black text-violet-400">{submissions.length}</span>
-                </div>
-              </div>
-            </>
-          )}
-        </header>
+              </>
+            )}
+          </header>
+        )}
 
         {profile?.community_role === 'admin' ? (
           <AdminDashboard theme={theme} />
-        ) : activeTab === 'profile' ? (
-          <ProfileEditor 
-            profile={profile!} 
-            onUpdate={setProfile} 
-            onBack={() => setActiveTab('daily')} 
-            theme={theme}
-          />
         ) : activeTab === 'weekly' ? (
           <WeeklyReviewSystem 
             userId={session.user.id} 
@@ -395,6 +401,7 @@ export default function App() {
           </div>
         )}
       </div>
+    )}
     </Layout>
   );
 }

@@ -59,7 +59,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, profile, hideNav
                     {profile?.full_name || user.email}
                   </span>
                   <span className="text-[10px] px-1.5 py-0.5 bg-violet-600 text-white rounded-md uppercase font-bold tracking-wider">
-                    {profile?.community_role || 'member'}
+                    {profile?.community_role || 'student'}
                   </span>
                 </button>
                 <button
