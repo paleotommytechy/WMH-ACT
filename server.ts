@@ -1,15 +1,17 @@
-import express from "express";
+import express, { Express } from "express";
 import path from "path";
+import { fileURLToPath } from "url";
 import { createServer as createViteServer } from "vite";
 import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
 
 dotenv.config();
 
-async function startServer() {
-  const app = express();
-  const PORT = 3000;
+// Define __dirname for ESM
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
+function setupRoutes(app: Express) {
   app.use(express.json());
 
   const supabaseUrl = process.env.VITE_SUPABASE_URL;
@@ -52,7 +54,6 @@ async function startServer() {
       }
 
       // 1. Create Supabase Auth User
-      // Using username@wmh.local as the email for internal login mapping
       const internalEmail = `${username}@wmh.local`;
       
       const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
@@ -72,7 +73,7 @@ async function startServer() {
 
       const userId = authData.user.id;
 
-      // 2. Update Profile (The trigger should have created it, but we update extra fields)
+      // 2. Update Profile
       const { error: profileError } = await supabaseAdmin
         .from('profiles')
         .update({
@@ -113,8 +114,13 @@ async function startServer() {
       message: err.message 
     });
   });
+}
 
-  // Vite middleware for development
+const app = express();
+
+export async function createServer() {
+  setupRoutes(app);
+
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -122,16 +128,43 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(process.cwd(), "dist");
+    // In production, serve static files from dist
+    // We try multiple paths to be robust across different deployment layouts
+    const possiblePaths = [
+      path.resolve(process.cwd(), "dist"),
+      path.join(__dirname, "dist"),
+      path.join(__dirname, "..", "dist")
+    ];
+    
+    let distPath = possiblePaths[0];
+    for (const p of possiblePaths) {
+      if (path.resolve(p) === path.resolve(distPath)) continue;
+      // We don't have fs.existsSync readily available without another import, 
+      // but express.static will just fail gracefully if path is wrong.
+    }
+
     app.use(express.static(distPath));
     app.get("*", (req, res) => {
+      // Check if it's an API route that somehow fell through
+      if (req.path.startsWith('/api')) {
+        return res.status(404).json({ error: `API route not found: ${req.path}` });
+      }
       res.sendFile(path.join(distPath, "index.html"));
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-  });
+  return app;
 }
 
-startServer();
+// Start the server
+const PORT = Number(process.env.PORT) || 3000;
+createServer().then((server) => {
+  server.listen(PORT, "0.0.0.0", () => {
+    console.log(`Server running on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`);
+  });
+}).catch(err => {
+  console.error("Failed to start server:", err);
+});
+
+export default app;
+
