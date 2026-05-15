@@ -1,7 +1,7 @@
 import express, { Express } from "express";
 import path from "path";
 import { fileURLToPath } from "url";
-import { createServer as createViteServer } from "vite";
+// No top-level vite import to avoid serverless issues
 import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
 
@@ -41,15 +41,6 @@ function setupRoutes(app: Express) {
       },
     }
   );
-
-  // API Routes
-  app.get("/api/health", (req, res) => {
-    res.json({ 
-      status: "ok", 
-      env: process.env.NODE_ENV,
-      supabaseConfigured: !!process.env.VITE_SUPABASE_URL && !!process.env.SUPABASE_SERVICE_ROLE_KEY
-    });
-  });
 
   app.post("/api/admin/create-student", async (req, res) => {
     const { fullName, realEmail, track, role, username, password, adminId } = req.body;
@@ -128,10 +119,17 @@ function setupRoutes(app: Express) {
 
 const app = express();
 
+let isInitialized = false;
+
 export async function createServer() {
+  if (isInitialized) return app;
+  
   setupRoutes(app);
+  isInitialized = true;
 
   if (process.env.NODE_ENV !== "production") {
+    // Dynamic import for vite to avoid issues in production/serverless environments
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
