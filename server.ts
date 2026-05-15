@@ -31,14 +31,26 @@ async function startServer() {
   );
 
   // API Routes
+  app.get("/api/health", (req, res) => {
+    res.json({ 
+      status: "ok", 
+      env: process.env.NODE_ENV,
+      supabaseConfigured: !!process.env.VITE_SUPABASE_URL && !!process.env.SUPABASE_SERVICE_ROLE_KEY
+    });
+  });
+
   app.post("/api/admin/create-student", async (req, res) => {
     const { fullName, realEmail, track, role, username, password, adminId } = req.body;
 
     if (!fullName || !realEmail || !username || !password) {
-      return res.status(400).json({ error: "Missing required fields" });
+      return res.status(400).json({ error: "Missing required fields: fullName, realEmail, username, and password are required." });
     }
 
     try {
+      if (!process.env.SUPABASE_SERVICE_ROLE_KEY || !process.env.VITE_SUPABASE_URL) {
+        throw new Error("Supabase service role key or URL is not configured in environment variables. Please check AI Studio Secrets.");
+      }
+
       // 1. Create Supabase Auth User
       // Using username@wmh.local as the email for internal login mapping
       const internalEmail = `${username}@wmh.local`;
@@ -61,27 +73,22 @@ async function startServer() {
       const userId = authData.user.id;
 
       // 2. Update Profile (The trigger should have created it, but we update extra fields)
-      // Since the trigger handle_new_user runs after insert on auth.users, 
-      // we might need a small delay or just perform an UPSERT to be safe.
-      
       const { error: profileError } = await supabaseAdmin
         .from('profiles')
         .update({
           full_name: fullName,
           username: username,
-          email: realEmail, // We store the real email here
+          email: realEmail,
           primary_track: track,
           role_title: role,
           community_role: 'student',
           created_by: adminId,
-          onboarding_completed: true // Admin created accounts are pre-onboarded
+          onboarding_completed: true
         })
         .eq('id', userId);
 
       if (profileError) {
         console.error("Profile update error:", profileError);
-        // Even if profile update fails, the auth user is created. 
-        // We should ideally return success but note the error if needed.
       }
 
       res.status(201).json({ 
@@ -91,8 +98,20 @@ async function startServer() {
 
     } catch (error: any) {
       console.error("Error creating student account:", error);
-      res.status(500).json({ error: error.message || "Internal server error" });
+      res.status(error.status || 500).json({ 
+        error: error.message || "Internal server error",
+        details: error
+      });
     }
+  });
+
+  // Global error handler for JSON responses
+  app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    console.error("Global Error Handler:", err);
+    res.status(500).json({ 
+      error: "An unexpected server error occurred.", 
+      message: err.message 
+    });
   });
 
   // Vite middleware for development

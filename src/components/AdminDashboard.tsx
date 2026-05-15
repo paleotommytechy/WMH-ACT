@@ -66,6 +66,13 @@ const InviteForm: React.FC<{ theme: 'dark' | 'light' }> = ({ theme }) => {
         })
       });
 
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('Non-JSON response:', text);
+        throw new Error('Server returned a non-JSON response. This usually means a server error or wrong URL. Check console for details.');
+      }
+
       const result = await response.json();
 
       if (!response.ok) throw new Error(result.error || 'Failed to create account');
@@ -73,7 +80,12 @@ const InviteForm: React.FC<{ theme: 'dark' | 'light' }> = ({ theme }) => {
       toast.success('Account Created Successfully!');
       setCreated(true);
       // We don't reset credentials here because the user needs to see them one last time
+      
+      // Refresh user list if overview or students view is active
+      // fetchAllData() is available in the parent, but we are inside InviteForm.
+      // We could pass a callback, but for now just inform the user.
     } catch (error: any) {
+      console.error('Create student error:', error);
       toast.error(error.message);
     } finally {
       setLoading(false);
@@ -232,6 +244,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark' }
         .order('created_at', { ascending: false });
 
       if (pError) throw pError;
+      
+      console.log('Fetched profiles count:', profiles?.length);
+      console.log('User roles found:', profiles?.map(p => p.community_role));
 
       // Fetch Submissions with Reviews
       const { data: subs, error: sError } = await supabase
@@ -329,9 +344,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark' }
   const filteredUsers = users.filter(u => {
     // Show anyone who isn't an admin as a student for safety
     const isStudent = u.community_role !== 'admin';
-    const matchesSearch = u.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                         u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         u.username?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = (u.full_name || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
+                         (u.email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         (u.username || '').toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === 'all' || u.account_status === statusFilter;
     return isStudent && matchesSearch && matchesStatus;
   });

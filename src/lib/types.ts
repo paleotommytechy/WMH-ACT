@@ -1,5 +1,5 @@
 
-export type UserRole = 'student' | 'admin';
+export type UserRole = 'student' | 'admin' | 'member';
 export type SkillLevel = 'Beginner' | 'Intermediate' | 'Advanced';
 
 export interface Profile {
