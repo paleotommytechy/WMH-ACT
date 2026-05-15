@@ -96,12 +96,15 @@ export interface Submission {
 export interface SubmissionReview {
   id: string;
   submission_id: string;
-  admin_id: string;
+  admin_id: string | null;
   status: 'pending' | 'reviewed' | 'flagged' | 'excellent';
   admin_notes: string | null;
   low_effort_detected: boolean;
   created_at: string;
   updated_at: string;
+  admin?: {
+    full_name: string | null;
+  };
 }
 
 export interface Announcement {

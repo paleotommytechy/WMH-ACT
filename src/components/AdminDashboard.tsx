@@ -10,15 +10,15 @@ import {
   BrainCircuit, Zap, Target, Menu
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { format, subDays, startOfWeek, endOfWeek, eachDayOfInterval, isToday, isYesterday } from 'date-fns';
-import { Profile, Submission, SubmissionReview, Announcement } from '@/src/lib/types';
+import { format, isToday, isYesterday } from 'date-fns';
+import { Profile, Submission, Announcement } from '@/src/lib/types';
 import { toast } from 'react-hot-toast';
 
 interface AdminDashboardProps {
   theme?: 'dark' | 'light';
 }
 
-type AdminView = 'overview' | 'students' | 'submissions' | 'announcements' | 'moderation' | 'invite';
+type AdminView = 'overview' | 'students' | 'submissions' | 'moderation' | 'invite';
 
 const InviteForm: React.FC<{ theme: 'dark' | 'light' }> = ({ theme }) => {
   const [form, setForm] = useState({
@@ -66,24 +66,11 @@ const InviteForm: React.FC<{ theme: 'dark' | 'light' }> = ({ theme }) => {
         })
       });
 
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        const text = await response.text();
-        console.error('Non-JSON response:', text);
-        throw new Error('Server returned a non-JSON response. This usually means a server error or wrong URL. Check console for details.');
-      }
-
       const result = await response.json();
-
       if (!response.ok) throw new Error(result.error || 'Failed to create account');
 
       toast.success('Account Created Successfully!');
       setCreated(true);
-      // We don't reset credentials here because the user needs to see them one last time
-      
-      // Refresh user list if overview or students view is active
-      // fetchAllData() is available in the parent, but we are inside InviteForm.
-      // We could pass a callback, but for now just inform the user.
     } catch (error: any) {
       console.error('Create student error:', error);
       toast.error(error.message);
@@ -218,7 +205,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark' }
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState<Profile[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
@@ -229,6 +215,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark' }
   // Detail views
   const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
   const [reviewForm, setReviewForm] = useState({ notes: '', status: 'reviewed' as any });
+  const [reviewHubTab, setReviewHubTab] = useState<'pending' | 'history'>('pending');
+
+  useEffect(() => {
+    console.log(`AdminDashboard: State updated. Submissions count: ${submissions.length}`);
+  }, [submissions]);
 
   useEffect(() => {
     fetchAllData();
@@ -237,37 +228,77 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark' }
   const fetchAllData = async () => {
     setLoading(true);
     try {
-      // Fetch Profiles
-      const { data: profiles, error: pError } = await supabase
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) throw new Error('Not authenticated');
+
+      const { data: adminProfile, error: adminErr } = await supabase
         .from('profiles')
+        .select('community_role')
+        .eq('id', authUser.id)
+        .single();
+      
+      if (adminErr) {
+        console.error('AdminDashboard: Error checking admin role:', adminErr);
+        // If we can't even read our own profile, we have a RLS problem
+      }
+      
+      console.log('AdminDashboard: Current Admin Profile:', adminProfile);
+      
+      if (adminProfile?.community_role !== 'admin') {
+        console.warn('AdminDashboard: User is not an admin according to profiles table.');
+        toast.error('Admin access restricted');
+      }
+
+      // Fetch Students
+      const { data: profiles, error: pError } = await supabase
+        .from('admin_student_management')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (pError) throw pError;
+      if (pError) {
+        console.warn('View admin_student_management fetch failed, falling back to profiles');
+        const { data: p } = await supabase
+          .from('profiles')
+          .select('*')
+          .order('created_at', { ascending: false });
+        setUsers(p || []);
+      } else {
+        setUsers(profiles || []);
+      }
       
-      console.log('Fetched profiles count:', profiles?.length);
-      console.log('User roles found:', profiles?.map(p => p.community_role));
-
-      // Fetch Submissions with Reviews
+      // Fetch Submissions with Reviews and Relationships
       const { data: subs, error: sError } = await supabase
         .from('submissions')
-        .select('*, review:submission_reviews(*)')
+        .select(`
+          *,
+          student:profiles(full_name, username, email),
+          review:submission_reviews(
+            *,
+            admin:profiles(full_name)
+          )
+        `)
         .order('submitted_date', { ascending: false });
 
-      if (sError) throw sError;
-
-      // Fetch Announcements
-      const { data: ann, error: aError } = await supabase
-        .from('announcements')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      // Fetch Platform Analytics via the helper function we created
-      const { data: analytics, error: rError } = await supabase.rpc('get_platform_analytics');
-
-      setUsers(profiles || []);
-      setSubmissions(subs || []);
-      setAnnouncements(ann || []);
+      if (sError) {
+        console.error('Submissions fetch error:', sError);
+        // Recovery simple fetch
+        const { data: recoveredSubs } = await supabase
+          .from('submissions')
+          .select('*, review:submission_reviews(*)')
+          .order('submitted_date', { ascending: false });
+        
+        setSubmissions(recoveredSubs || []);
+      } else {
+        // PostgREST might return review/student as arrays due to relationships, normalize them
+        const normalized = (subs || []).map(s => ({
+          ...s,
+          student: Array.isArray(s.student) ? s.student[0] : s.student,
+          review: Array.isArray(s.review) ? (s.review[0] || null) : (s.review || null)
+        }));
+        setSubmissions(normalized);
+      }
+      
+      const { data: analytics } = await supabase.rpc('get_platform_analytics');
       setStats(analytics);
     } catch (error) {
       console.error('Admin Dashboard fetch error:', error);
@@ -282,6 +313,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark' }
     
     try {
       const { data: { user } } = await supabase.auth.getUser();
+      
+      // Auto-assign the admin_id to the current reviewer
       const { error } = await supabase
         .from('submission_reviews')
         .upsert({
@@ -294,7 +327,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark' }
 
       if (error) throw error;
       
-      toast.success('Review submitted');
+      toast.success('Review finalized & Admin assigned');
       setSelectedSubmission(null);
       fetchAllData();
     } catch (error) {
@@ -312,7 +345,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark' }
     }
   };
 
-  // Mastery Intelligence Logic
   const getIntelligenceInsights = () => {
     const atRisk = users.filter(u => (u.weekly_consistency_score || 0) < 40 && u.community_role === 'student');
     const topPerformers = [...users].filter(u => u.community_role === 'student').sort((a, b) => (b.current_streak || 0) - (a.current_streak || 0)).slice(0, 3);
@@ -327,7 +359,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark' }
       topPerformers,
       todayCount,
       velocity,
-      needsAttention: submissions.filter(s => !s.review).length
+      needsAttention: submissions.filter(s => !s.review || s.review.status === 'pending').length
     };
   };
 
@@ -342,7 +374,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark' }
   }
 
   const filteredUsers = users.filter(u => {
-    // Show anyone who isn't an admin as a student for safety
     const isStudent = u.community_role !== 'admin';
     const matchesSearch = (u.full_name || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
                          (u.email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -390,11 +421,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark' }
           </button>
         </div>
 
+        <button
+          onClick={() => fetchAllData()}
+          className={`w-full flex items-center gap-3 px-4 py-4 mb-4 rounded-2xl font-black transition-all border ${theme === 'dark' ? 'bg-white/5 border-white/10 text-violet-400 hover:bg-white/10' : 'bg-violet-50 border-violet-200 text-violet-600 hover:bg-violet-100'}`}
+        >
+          <RefreshCw size={20} className={loading ? 'animate-spin' : ''} />
+          <span>Sync Data</span>
+        </button>
+
         {[
           { id: 'overview', label: 'Overview', icon: LayoutDashboard },
           { id: 'students', label: 'Students', icon: Users },
           { id: 'submissions', label: 'Review Hub', icon: FileText },
-          { id: 'announcements', label: 'Announcements', icon: Bell },
           { id: 'invite', label: 'Invite Student', icon: UserCheck },
           { id: 'moderation', label: 'Moderation', icon: ShieldAlert },
         ].map((item) => (
@@ -412,9 +450,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark' }
           >
             <item.icon size={20} />
             <span className="tracking-tight">{item.label}</span>
-            {item.id === 'submissions' && submissions.filter(s => !s.review).length > 0 && (
+            {item.id === 'submissions' && submissions.filter(s => !s.review || s.review.status === 'pending').length > 0 && (
               <span className="ml-auto w-6 h-6 bg-rose-500 text-white text-[10px] rounded-full flex items-center justify-center font-black">
-                {submissions.filter(s => !s.review).length}
+                {submissions.filter(s => !s.review || s.review.status === 'pending').length}
               </span>
             )}
           </button>
@@ -432,13 +470,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark' }
               exit={{ opacity: 0, y: -20 }}
               className="space-y-8"
             >
-              {/* Quick Stats Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
                   { label: 'Total Students', value: stats?.total_users || 0, icon: Users, color: 'text-violet-400' },
                   { label: 'Active Today', value: stats?.active_students || 0, icon: UserCheck, color: 'text-emerald-400' },
-                  { label: 'Pending Reviews', value: stats?.pending_reviews || 0, icon: AlertCircle, color: 'text-orange-400' },
-                  { label: 'Avg Persistence', value: (stats?.avg_focus_hours || 0).toFixed(1) + 'h', icon: TrendingUp, color: 'text-blue-400' },
+                  { label: 'Avg Persistence', value: (stats?.avg_persistence || 0).toFixed(1) + 'd', icon: TrendingUp, color: 'text-blue-400' },
+                  { label: 'Submission Velocity', value: (stats?.submission_velocity >= 0 ? '+' : '') + (stats?.submission_velocity || 0) + '%', icon: Zap, color: 'text-amber-400' },
                 ].map((stat, i) => (
                   <div key={i} className={`backdrop-blur-md p-6 rounded-2xl border shadow-sm transition-all ${theme === 'dark' ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200'}`}>
                     <div className="flex items-center justify-between mb-4">
@@ -450,7 +487,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark' }
                 ))}
               </div>
 
-              {/* Mastery Intelligence Feed */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className={`lg:col-span-2 backdrop-blur-md p-8 rounded-3xl border ${theme === 'dark' ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200 shadow-sm'}`}>
                   <div className="flex items-center justify-between mb-8">
@@ -475,16 +511,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark' }
                       </div>
                       <div className="flex items-end gap-3">
                         <span className={`text-4xl font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-                          {insights.velocity > 0 ? '+' : ''}{insights.velocity.toFixed(0)}%
+                          {stats?.submission_velocity >= 0 ? '+' : ''}{stats?.submission_velocity || 0}%
                         </span>
-                        <span className={`text-xs font-bold mb-2 ${insights.velocity >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        <span className={`text-xs font-bold mb-2 ${stats?.submission_velocity >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                           vs yesterday
                         </span>
                       </div>
-                      <p className={`text-xs mt-4 ${theme === 'dark' ? 'text-white/30' : 'text-slate-500'}`}>
-                        Students are submitting {insights.velocity >= 0 ? 'more' : 'less'} frequently today. 
-                        {insights.velocity > 20 ? ' Momentum is high.' : insights.velocity < -20 ? ' Intervention suggested.' : ''}
-                      </p>
                     </div>
 
                     <div className={`p-6 rounded-2xl border ${theme === 'dark' ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-200'}`}>
@@ -494,15 +526,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark' }
                       </div>
                       <div className="flex items-end gap-3">
                         <span className={`text-4xl font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-                          {insights.todayCount}
+                          {stats?.daily_submissions || 0}
                         </span>
                         <span className={`text-xs font-bold mb-2 ${theme === 'dark' ? 'text-white/40' : 'text-slate-500'}`}>
                           tasks locked today
                         </span>
                       </div>
-                      <p className={`text-xs mt-4 ${theme === 'dark' ? 'text-white/30' : 'text-slate-500'}`}>
-                        Current platform utilization is at {Math.min(100, (insights.todayCount / (users.length || 1) * 100)).toFixed(0)}% for the last 24 hours.
-                      </p>
                     </div>
                   </div>
 
@@ -518,15 +547,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark' }
                               <p className={`text-[10px] ${theme === 'dark' ? 'text-white/40' : 'text-slate-500'}`}>Consistency dropped to {u.weekly_consistency_score}%</p>
                             </div>
                           </div>
-                          <button 
-                            onClick={() => {
-                              setActiveView('announcements');
-                              toast(`Drafting follow-up for ${u.full_name}`, { icon: '📝' });
-                            }}
-                            className="text-[10px] font-black uppercase text-rose-400 hover:underline"
-                          >
-                             Reach Out
-                          </button>
                         </div>
                       ))}
                       {insights.atRisk.length === 0 && (
@@ -561,12 +581,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark' }
                         </div>
                       ))}
                     </div>
-                    <button 
-                      onClick={() => setActiveView('announcements')}
-                      className={`w-full mt-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${theme === 'dark' ? 'bg-white/5 hover:bg-white/10 text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'}`}
-                    >
-                      Acknowledge Leaders
-                    </button>
                   </div>
 
                   <div className={`backdrop-blur-md p-6 rounded-3xl border ${theme === 'dark' ? 'bg-white/5 border-white/10 shadow-xl' : 'bg-violet-600 border-none shadow-violet-600/20 text-white'}`}>
@@ -596,7 +610,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark' }
               animate={{ opacity: 1, x: 0 }}
               className="space-y-6"
             >
-              {/* Filter Bar */}
               <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
                 <div className="relative w-full md:w-96">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" size={18} />
@@ -651,7 +664,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark' }
                               </div>
                               <div>
                                 <div className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{u.full_name}</div>
-                                <div className={`text-[10px] ${theme === 'dark' ? 'text-white/30' : 'text-slate-500'}`}>{u.email}</div>
+                                <div className={`text-[10px] ${theme === 'dark' ? 'text-white/30' : 'text-slate-500'}`}>Email: {u.email}</div>
                               </div>
                             </div>
                           </td>
@@ -695,9 +708,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark' }
               animate={{ opacity: 1, x: 0 }}
               className="space-y-6"
             >
+              <div className="flex gap-2 p-1 rounded-2xl bg-white/5 border border-white/10 w-fit">
+                <button 
+                  onClick={() => setReviewHubTab('pending')}
+                  className={`px-6 py-2 rounded-xl text-xs font-black uppercase transition-all ${reviewHubTab === 'pending' ? 'bg-violet-600 text-white' : 'text-white/40 hover:text-white'}`}
+                >
+                  Needs Review ({submissions.filter(s => !s.review || s.review.status === 'pending').length})
+                </button>
+                <button 
+                  onClick={() => setReviewHubTab('history')}
+                  className={`px-6 py-2 rounded-xl text-xs font-black uppercase transition-all ${reviewHubTab === 'history' ? 'bg-white/10 text-white' : 'text-white/40 hover:text-white'}`}
+                >
+                  Audit History
+                </button>
+              </div>
+
               <div className="grid grid-cols-1 gap-4">
-                {submissions.filter(s => !s.review || s.review.status === 'pending').map((sub) => {
-                  const student = users.find(u => u.id === sub.user_id);
+                {(reviewHubTab === 'pending' 
+                  ? submissions.filter(s => !s.review || s.review.status === 'pending')
+                  : submissions.filter(s => s.review && s.review.status !== 'pending')
+                ).map((sub: any) => {
+                  const student = sub.student || users.find(u => u.id === sub.user_id);
                   return (
                     <motion.div
                       layout
@@ -707,125 +738,74 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark' }
                       }`}
                     >
                       <div className="flex items-center gap-4">
-                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${theme === 'dark' ? 'bg-violet-500/10 text-violet-400' : 'bg-violet-50 text-violet-600'}`}>
-                          <Clock size={24} />
+                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
+                          sub.review?.status === 'flagged' ? 'bg-rose-500/10 text-rose-400' :
+                          sub.review?.status === 'excellent' ? 'bg-amber-500/10 text-amber-400' :
+                          'bg-violet-500/10 text-violet-400'
+                        }`}>
+                          {sub.review?.status === 'excellent' ? <Star size={24} /> : 
+                           sub.review?.status === 'flagged' ? <AlertCircle size={24} /> : <Clock size={24} />}
                         </div>
-                        <div>
-                          <h4 className={`font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{sub.task_completed}</h4>
+                        <div className="min-w-0 flex-1">
+                          <h4 className={`font-black truncate ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{sub.task_completed}</h4>
                           <p className={`text-xs ${theme === 'dark' ? 'text-white/40' : 'text-slate-500'}`}>
-                            By <span className="text-violet-400 font-bold">{student?.full_name || 'Anonymous Student'}</span> • {format(new Date(sub.submitted_date), 'MMM d, HH:mm')}
+                            By <span className="text-violet-400 font-bold">{student?.full_name || student?.username || 'Anonymous Student'}</span> • {format(new Date(sub.submitted_date), 'MMM d, HH:mm')}
                           </p>
+                          {sub.review?.admin_notes && (
+                            <p className={`text-xs mt-2 p-2 rounded-lg italic border ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white/50' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>
+                              <MessageSquare size={12} className="inline mr-1" />
+                              "{sub.review.admin_notes}"
+                            </p>
+                          )}
+                          {sub.review?.admin?.full_name && (
+                            <p className="text-[10px] mt-1 text-violet-400 font-bold uppercase tracking-widest">
+                              Reviewed by {sub.review.admin.full_name}
+                            </p>
+                          )}
                         </div>
                       </div>
 
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-wrap items-center gap-4">
+                        {sub.review && (
+                          <div className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase border ${
+                            sub.review.status === 'excellent' ? 'bg-amber-500/10 border-amber-500/20 text-amber-500' :
+                            sub.review.status === 'reviewed' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' :
+                            'bg-rose-500/10 border-rose-500/20 text-rose-500'
+                          }`}>
+                            {sub.review.status}
+                          </div>
+                        )}
                         <div className={`px-4 py-2 rounded-xl text-xs font-bold ${theme === 'dark' ? 'bg-white/5 text-white/60' : 'bg-slate-50 text-slate-500'}`}>
                           {sub.time_spent} mins
                         </div>
                         <button 
-                          onClick={() => setSelectedSubmission(sub)}
-                          className="px-6 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-xs font-black transition-all shadow-lg shadow-violet-600/20"
+                          onClick={() => {
+                            setReviewForm({ notes: sub.review?.admin_notes || '', status: sub.review?.status || 'reviewed' });
+                            setSelectedSubmission(sub);
+                          }}
+                          className={`px-6 py-2 rounded-xl text-xs font-black transition-all shadow-lg ${
+                            sub.review ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-violet-600 hover:bg-violet-500 text-white shadow-violet-600/20'
+                          }`}
                         >
-                          Review Submission
+                          {sub.review ? 'Update Review' : 'Review Submission'}
                         </button>
                       </div>
                     </motion.div>
                   );
                 })}
                 
-                {submissions.filter(s => !s.review || s.review.status === 'pending').length === 0 && (
+                {(reviewHubTab === 'pending' 
+                  ? submissions.filter(s => !s.review || s.review.status === 'pending')
+                  : submissions.filter(s => s.review && s.review.status !== 'pending')
+                ).length === 0 && (
                    <div className="py-20 text-center">
                      <CheckCircle2 className="mx-auto text-emerald-500 mb-4" size={48} />
-                     <h3 className={`text-2xl font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>All Clear!</h3>
-                     <p className={`text-sm ${theme === 'dark' ? 'text-white/40' : 'text-slate-500'}`}>No pending submissions for review right now.</p>
+                     <h3 className={`text-2xl font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Gallery Empty</h3>
+                     <p className={`text-sm ${theme === 'dark' ? 'text-white/40' : 'text-slate-500'}`}>
+                       {reviewHubTab === 'pending' ? 'No pending submissions.' : 'No audit history yet.'}
+                     </p>
                    </div>
                 )}
-              </div>
-            </motion.div>
-          )}
-
-          {activeView === 'announcements' && (
-            <motion.div 
-              key="announcements"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="space-y-8"
-            >
-              <div className={`p-8 rounded-3xl border backdrop-blur-xl ${theme === 'dark' ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200'}`}>
-                <h3 className={`text-xl font-black mb-6 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Send Global Announcement</h3>
-                <form 
-                  onSubmit={async (e) => {
-                    e.preventDefault();
-                    const form = e.target as HTMLFormElement;
-                    const title = (form.elements.namedItem('title') as HTMLInputElement).value;
-                    const content = (form.elements.namedItem('content') as HTMLTextAreaElement).value;
-                    const target = (form.elements.namedItem('target') as HTMLSelectElement).value;
-
-                    try {
-                      const { data: { user } } = await supabase.auth.getUser();
-                      const { error } = await supabase.from('announcements').insert({
-                        title, content, target_role: target, created_by: user?.id
-                      });
-                      if (error) throw error;
-                      toast.success('Announcement broadcasted!');
-                      form.reset();
-                      fetchAllData();
-                    } catch (err) {
-                      toast.error('Failed to send announcement');
-                    }
-                  }}
-                  className="space-y-4"
-                >
-                  <input 
-                    name="title"
-                    required
-                    type="text" 
-                    placeholder="Announcement Title"
-                    className={`w-full px-6 py-3 rounded-2xl border outline-none font-bold ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white focus:border-violet-500' : 'bg-slate-50 border-slate-200'}`}
-                  />
-                  <textarea 
-                    name="content"
-                    required
-                    rows={4}
-                    placeholder="Type your message to the Mastery Hub community..."
-                    className={`w-full px-6 py-4 rounded-3xl border outline-none font-medium resize-none ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white focus:border-violet-500' : 'bg-slate-50 border-slate-200'}`}
-                  />
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-black uppercase text-white/30">Target:</span>
-                      <select name="target" className={`px-3 py-1 rounded-lg text-xs font-bold ${theme === 'dark' ? 'bg-white/10 text-white border-none' : 'bg-slate-100'}`}>
-                        <option value="all">All Students</option>
-                        <option value="at-risk">At-Risk Students</option>
-                        <option value="top">Top Performers</option>
-                      </select>
-                    </div>
-                    <button type="submit" className="flex items-center gap-2 px-8 py-3 bg-violet-600 hover:bg-violet-700 text-white rounded-2xl font-black transition-all">
-                      <Send size={18} />
-                      Blast Announcement
-                    </button>
-                  </div>
-                </form>
-              </div>
-
-              <div className="space-y-4">
-                <h3 className={`text-lg font-bold flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-                  <Clock size={20} className="text-violet-400" />
-                  Recent Communications
-                </h3>
-                {announcements.length === 0 ? (
-                  <p className="text-center py-10 opacity-30">No recent announcements.</p>
-                ) : announcements.map(a => (
-                  <div key={a.id} className={`p-6 rounded-2xl border ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white/60' : 'bg-white border-slate-200 shadow-sm'}`}>
-                    <div className="flex justify-between items-start mb-2">
-                       <h4 className={`font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{a.title}</h4>
-                       <div className="flex items-center gap-2">
-                         <span className="text-[10px] font-bold px-2 py-0.5 bg-violet-600/20 text-violet-400 rounded uppercase">{a.target_role}</span>
-                         <span className="text-[10px] font-bold opacity-30">{format(new Date(a.created_at), 'MMM d, HH:mm')}</span>
-                       </div>
-                    </div>
-                    <p className="text-sm font-medium">{a.content}</p>
-                  </div>
-                ))}
               </div>
             </motion.div>
           )}
@@ -978,8 +958,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark' }
                           className={`flex flex-col items-center gap-2 p-4 rounded-2xl border transition-all ${
                             reviewForm.status === type.id 
                               ? type.id === 'reviewed' ? 'bg-emerald-500 text-white border-emerald-500' : 
-                                type.id === 'excellent' ? 'bg-amber-500 text-white border-amber-500' : 'bg-rose-500 text-white border-rose-500'
-                              : theme === 'dark' ? 'bg-white/5 border-white/10 text-white/40' + ' ' + type.color : 'bg-slate-50'
+                                 type.id === 'excellent' ? 'bg-amber-500 text-white border-amber-500' : 'bg-rose-500 text-white border-rose-500'
+                              : theme === 'dark' ? 'bg-white/5 border-white/10 text-white/40 ' + type.color : 'bg-slate-50'
                           }`}
                         >
                           <type.icon size={20} />

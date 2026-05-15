@@ -11,14 +11,18 @@ export const ConsistencyTracker: React.FC<ConsistencyTrackerProps> = ({ submissi
   const last30Days = Array.from({ length: 30 }, (_, i) => subDays(new Date(), 29 - i));
   
   const hasSubmissionOnDate = (date: Date) => {
-    return submissions.some(s => isSameDay(new Date(s.submitted_date), date));
+    return submissions
+      .filter(s => !s.review || s.review.status !== 'flagged')
+      .some(s => isSameDay(new Date(s.submitted_date), date));
   };
 
   const consistencyRate = Math.round(
-    (submissions.filter(s => {
-      const d = new Date(s.submitted_date);
-      return d >= subDays(new Date(), 30);
-    }).length / 30) * 100
+    (submissions
+      .filter(s => !s.review || s.review.status !== 'flagged')
+      .filter(s => {
+        const d = new Date(s.submitted_date);
+        return d >= subDays(new Date(), 30);
+      }).length / 30) * 100
   );
 
   return (

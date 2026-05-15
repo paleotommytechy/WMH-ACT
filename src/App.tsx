@@ -11,7 +11,10 @@ import { PublicGenerator } from './components/PublicGenerator';
 import { AdminDashboard } from './components/AdminDashboard';
 import { ProfileSetup } from './components/ProfileSetup';
 import { ProfileEditor } from './components/ProfileEditor';
-import { Loader2, Plus, Calendar, Clock, ChevronRight, TrendingUp, Shield, User as UserIcon } from 'lucide-react';
+import { 
+  Loader2, Plus, Calendar, Clock, ChevronRight, TrendingUp, 
+  Shield, User as UserIcon, Star, CheckCircle2, AlertCircle 
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format, startOfWeek, endOfWeek, isSameWeek } from 'date-fns';
 import { Toaster, toast } from 'react-hot-toast';
@@ -89,8 +92,12 @@ export default function App() {
       
       if (error) {
         console.error('Profile fetch error details:', error);
-        if (error.message.includes('recursion')) {
+        if (error.code === '42501') {
+          toast.error('Database Permission Error: Please run the supabase_permission_fix.sql script in your Supabase dashboard.', { duration: 6000 });
+        } else if (error.message.includes('recursion')) {
           toast.error('Security Error: Policy Loop detected in Supabase.');
+        } else {
+          toast.error('Failed to fetch profile settings.');
         }
         return;
       }
@@ -125,7 +132,7 @@ export default function App() {
     try {
       const { data, error } = await supabase
         .from('submissions')
-        .select('*')
+        .select('*, review:submission_reviews(*)')
         .eq('user_id', userId)
         .order('submitted_date', { ascending: false });
       
@@ -133,7 +140,23 @@ export default function App() {
         console.error('Submissions fetch error:', error);
         return;
       }
-      setSubmissions(data || []);
+
+      // Normalize reviews (Supabase join often returns an array or object depending on schema)
+      const normalizedSubs = (data || []).map(s => {
+        let review = null;
+        if (Array.isArray(s.review)) {
+          review = s.review[0] || null;
+        } else if (s.review) {
+          review = s.review;
+        }
+        
+        return {
+          ...s,
+          review
+        };
+      });
+
+      setSubmissions(normalizedSubs);
     } catch (err) {
       console.error('Fetch error:', err);
     }
@@ -150,8 +173,12 @@ export default function App() {
   const calculateStreak = (subs: any[]) => {
     if (!subs || subs.length === 0) return { current: 0, longest: 0 };
     
+    // Filter out flagged submissions for streak calculation
+    const validSubs = subs.filter(s => !s.review || s.review.status !== 'flagged');
+    if (validSubs.length === 0) return { current: 0, longest: 0 };
+
     // Get unique dates sorted descending
-    const dates = Array.from(new Set(subs.map(s => s.submitted_date))).sort((a, b) => b.localeCompare(a));
+    const dates = Array.from(new Set(validSubs.map(s => s.submitted_date))).sort((a, b) => b.localeCompare(a));
     
     let current = 0;
     let longest = 0;
@@ -216,6 +243,7 @@ export default function App() {
   const weekEnd = endOfWeek(new Date());
   const weeklyTotalMinutes = submissions
     .filter(s => isSameWeek(new Date(s.submitted_date), new Date()))
+    .filter(s => !s.review || s.review.status !== 'flagged')
     .reduce((acc, s) => acc + s.time_spent, 0);
 
   return (
@@ -347,7 +375,20 @@ export default function App() {
                             </div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-3">
+                          {s.review && (
+                            <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-black uppercase border ${
+                              s.review.status === 'excellent' ? 'bg-amber-500/10 border-amber-500/20 text-amber-500' :
+                              s.review.status === 'reviewed' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' :
+                              s.review.status === 'flagged' ? 'bg-rose-500/10 border-rose-500/20 text-rose-500' :
+                              'bg-slate-500/10 border-slate-500/20 text-slate-500'
+                            }`}>
+                              {s.review.status === 'excellent' && <Star size={10} />}
+                              {s.review.status === 'reviewed' && <CheckCircle2 size={10} />}
+                              {s.review.status === 'flagged' && <AlertCircle size={10} />}
+                              {s.review.status}
+                            </div>
+                          )}
                           {s.proof_url && (
                             <a
                               href={s.proof_url}

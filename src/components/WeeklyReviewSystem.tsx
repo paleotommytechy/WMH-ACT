@@ -48,7 +48,8 @@ export const WeeklyReviewSystem: React.FC<WeeklyReviewProps> = ({ userId, submis
   const weekEnd = endOfWeek(selectedWeek, { weekStartsOn: 1 });
   
   const weekSubmissions = submissions.filter(s => 
-    isWithinInterval(new Date(s.submitted_date), { start: selectedWeek, end: weekEnd })
+    isWithinInterval(new Date(s.submitted_date), { start: selectedWeek, end: weekEnd }) &&
+    (!s.review || s.review.status !== 'flagged')
   );
 
   const stats = {
