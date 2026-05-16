@@ -338,6 +338,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark' }
   const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
   const [reviewForm, setReviewForm] = useState({ notes: '', status: 'reviewed' as any });
   const [reviewHubTab, setReviewHubTab] = useState<'pending' | 'history'>('pending');
+  const [initLoading, setInitLoading] = useState(false);
+
+  const initInfrastructure = async () => {
+    try {
+      setInitLoading(true);
+      const response = await fetch('/api/admin/init-infrastructure', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const data = await response.json();
+      if (data.success) {
+        toast.success('Identity Storage (Avatars) Initialized!');
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (err: any) {
+      toast.error('Initialization failed: ' + err.message);
+    } finally {
+      setInitLoading(false);
+    }
+  };
 
   useEffect(() => {
     console.log(`AdminDashboard: State updated. Submissions count: ${submissions.length}`);
@@ -607,6 +628,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark' }
               exit={{ opacity: 0, y: -20 }}
               className="space-y-8"
             >
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <h1 className={`text-4xl font-black tracking-tighter italic ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>COCKPIT CORE</h1>
+                  <p className={theme === 'dark' ? 'text-violet-200/60' : 'text-slate-500'}>Operational authority of the Mastery Hub.</p>
+                </div>
+                <button 
+                  onClick={initInfrastructure}
+                  disabled={initLoading}
+                  title="Fix configuration & setup storage buckets"
+                  className={`p-4 rounded-2xl border transition-all flex items-center gap-2 group ${theme === 'dark' ? 'bg-white/5 border-white/10 hover:bg-violet-600/20 hover:border-violet-600/40 text-violet-400' : 'bg-white border-slate-200 hover:border-violet-600/40 text-violet-600 shadow-sm'}`}
+                >
+                  <RefreshCw size={20} className={initLoading ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'} />
+                  <span className="text-xs font-black uppercase tracking-widest hidden md:inline">Sync Infra</span>
+                </button>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
                   { label: 'Total Students', value: stats?.total_users || 0, icon: Users, color: 'text-violet-400' },

@@ -118,9 +118,13 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, profile, hideNav
                 </button>
                 <button 
                   onClick={() => onTabChange?.('profile')}
-                  className={`hidden md:flex items-center gap-2 px-3 py-1 rounded-full border transition-colors ${theme === 'dark' ? 'bg-violet-900/30 border-violet-700/50 hover:bg-violet-800/40 text-violet-200' : 'bg-violet-900/20 border-violet-700/30 hover:bg-violet-900/40 text-violet-200'}`}
+                  className={`hidden md:flex items-center gap-2 pr-3 pl-1.5 py-1 rounded-full border transition-colors ${theme === 'dark' ? 'bg-violet-900/30 border-violet-700/50 hover:bg-violet-800/40 text-violet-200' : 'bg-violet-900/20 border-violet-700/30 hover:bg-violet-900/40 text-violet-200'}`}
                 >
-                  <UserIcon size={14} className={theme === 'dark' ? 'text-violet-400' : 'text-violet-400'} />
+                  {profile?.profile_image ? (
+                    <img src={profile.profile_image} alt={profile.full_name || 'Profile'} className="w-6 h-6 rounded-full object-cover border border-violet-500/50" />
+                  ) : (
+                    <UserIcon size={14} className={theme === 'dark' ? 'text-violet-400' : 'text-violet-400'} />
+                  )}
                   <span className="text-xs font-medium">
                     {profile?.full_name || user.email}
                   </span>
@@ -130,9 +134,13 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, profile, hideNav
                 </button>
                 <button
                   onClick={() => onTabChange?.('profile')}
-                  className="md:hidden p-2 text-neutral-400 hover:text-white"
+                  className="md:hidden w-10 h-10 rounded-full flex items-center justify-center overflow-hidden border border-violet-500/30"
                 >
-                  <UserIcon size={20} />
+                  {profile?.profile_image ? (
+                    <img src={profile.profile_image} alt="Profile" className="w-full h-full object-cover" />
+                  ) : (
+                    <UserIcon size={20} className="text-neutral-400" />
+                  )}
                 </button>
                 <button
                   onClick={handleLogout}

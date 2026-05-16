@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/src/lib/supabase';
 import { Profile, SkillLevel, UserRole } from '@/src/lib/types';
-import { Loader2, User, MapPin, Briefcase, GraduationCap, Target, Save, ArrowLeft, Globe, Github, Linkedin, Twitter, ExternalLink, Image as ImageIcon, Bell } from 'lucide-react';
+import { Loader2, User, MapPin, Briefcase, GraduationCap, Target, Save, ArrowLeft, Globe, Github, Linkedin, Twitter, ExternalLink, Image as ImageIcon, Bell, Camera, Upload } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'react-hot-toast';
 import { NotificationSettings } from './NotificationSettings';
@@ -16,8 +16,52 @@ interface ProfileEditorProps {
 
 export function ProfileEditor({ profile, onUpdate, onBack, theme = 'dark' }: ProfileEditorProps) {
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [formData, setFormData] = useState<Partial<Profile>>({ ...profile });
   const [activeTab, setActiveTab] = useState<'profile' | 'notifications'>('profile');
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate type and size
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload an image file');
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Image size must be less than 2MB');
+      return;
+    }
+
+    try {
+      setUploading(true);
+      const fileExt = file.name.split('.').pop();
+      const fileName = `avatar-${Date.now()}.${fileExt}`;
+      const filePath = `${profile.id}/${fileName}`;
+
+      // Upload to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      // Update local state and form
+      updateField('profile_image', publicUrl);
+      toast.success('Identity visual updated!');
+    } catch (err: any) {
+      console.error('Upload error:', err);
+      toast.error(err.message || 'Failed to upload image');
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -128,22 +172,37 @@ export function ProfileEditor({ profile, onUpdate, onBack, theme = 'dark' }: Pro
                 className={`w-full border rounded-xl px-4 py-3 focus:ring-2 focus:ring-violet-500/50 outline-none transition-all ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
               />
             </div>
-            <div className="space-y-2">
-              <label className={`text-[10px] uppercase font-bold tracking-wider ${theme === 'dark' ? 'text-white/40' : 'text-slate-400'}`}>Profile Image URL</label>
-              <div className="flex gap-2">
-                <input 
-                  value={formData.profile_image || ''}
-                  onChange={e => updateField('profile_image', e.target.value)}
-                  placeholder="https://..."
-                  className={`flex-1 border rounded-xl px-4 py-3 focus:ring-2 focus:ring-violet-500/50 outline-none transition-all ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
-                />
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden ${theme === 'dark' ? 'bg-white/10 text-white/20' : 'bg-slate-100 text-slate-300'}`}>
+            <div className="space-y-4">
+              <label className={`text-[10px] uppercase font-bold tracking-wider ${theme === 'dark' ? 'text-white/40' : 'text-slate-400'}`}>Identity Visual (Avatar)</label>
+              <div className="flex flex-col items-center gap-4">
+                <div className={`relative group w-32 h-32 rounded-3xl overflow-hidden border-2 transition-all ${theme === 'dark' ? 'border-white/10 bg-white/5' : 'border-slate-100 bg-slate-50'}`}>
                   {formData.profile_image ? (
-                    <img src={formData.profile_image} alt="Preview" className="w-full h-full object-cover" />
+                    <img src={formData.profile_image} alt="Profile" className="w-full h-full object-cover transition-transform group-hover:scale-110" />
                   ) : (
-                    <ImageIcon size={20} />
+                    <div className="w-full h-full flex flex-col items-center justify-center opacity-40">
+                      <Camera size={32} />
+                    </div>
                   )}
+                  
+                  <label className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all flex flex-col items-center justify-center cursor-pointer">
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      className="hidden" 
+                      onChange={handleImageUpload}
+                      disabled={uploading}
+                    />
+                    {uploading ? (
+                      <Loader2 className="animate-spin text-white" size={24} />
+                    ) : (
+                      <>
+                        <Upload className="text-white mb-2" size={20} />
+                        <span className="text-[10px] text-white font-black uppercase">Change Photo</span>
+                      </>
+                    )}
+                  </label>
                 </div>
+                <p className={`text-[10px] text-center font-medium ${theme === 'dark' ? 'text-white/20' : 'text-slate-400'}`}>PNG, JPG up to 2MB. Square recommended.</p>
               </div>
             </div>
             <div className="space-y-2">

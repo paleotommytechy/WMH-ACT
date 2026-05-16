@@ -189,6 +189,30 @@ function setupRoutes(app: Express) {
     }
   });
 
+  // --- Infrastructure & Storage Setup ---
+  app.post("/api/admin/init-infrastructure", async (req, res) => {
+    try {
+      // 1. Create Avatars Bucket if it doesn't exist
+      const { data: bucket, error: bError } = await supabaseAdmin.storage.createBucket('avatars', {
+        public: true,
+        allowedMimeTypes: ['image/png', 'image/jpeg', 'image/gif'],
+        fileSizeLimit: 2 * 1024 * 1024 // 2MB
+      });
+
+      if (bError && bError.message !== 'Bucket already exists') {
+        throw bError;
+      }
+
+      res.status(200).json({ 
+        success: true, 
+        message: "Infrastructure initialized successfully." 
+      });
+    } catch (error: any) {
+      console.error('Infrastructure init error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Global error handler for JSON responses
   app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
     console.error("Global Error Handler:", err);
