@@ -7,7 +7,7 @@ import {
   BarChart3, LayoutDashboard, UserCheck, ShieldAlert, 
   Bell, FileText, ChevronRight, MoreVertical, Star,
   Trash2, X, Send, Copy, RefreshCw, Lock, User, Mail,
-  BrainCircuit, Zap, Target, Menu
+  BrainCircuit, Zap, Target, Menu, Maximize2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format, isToday, isYesterday } from 'date-fns';
@@ -207,6 +207,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark' }
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [showLightbox, setShowLightbox] = useState<string | null>(null);
   
   // Search & Filter States
   const [searchQuery, setSearchQuery] = useState('');
@@ -277,6 +278,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark' }
             admin:profiles(full_name)
           )
         `)
+        .eq('is_draft', false)
         .order('submitted_date', { ascending: false });
 
       if (sError) {
@@ -285,6 +287,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark' }
         const { data: recoveredSubs } = await supabase
           .from('submissions')
           .select('*, review:submission_reviews(*)')
+          .eq('is_draft', false)
           .order('submitted_date', { ascending: false });
         
         setSubmissions(recoveredSubs || []);
@@ -323,7 +326,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark' }
           status: reviewForm.status,
           admin_notes: reviewForm.notes,
           updated_at: new Date().toISOString()
-        });
+        }, { onConflict: 'submission_id' });
 
       if (error) throw error;
       
@@ -346,9 +349,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark' }
   };
 
   const getIntelligenceInsights = () => {
-    const atRisk = users.filter(u => (u.weekly_consistency_score || 0) < 40 && u.community_role === 'student');
-    const topPerformers = [...users].filter(u => u.community_role === 'student').sort((a, b) => (b.current_streak || 0) - (a.current_streak || 0)).slice(0, 3);
+    const students = users.filter(u => u.community_role === 'student');
+    const atRisk = students.filter(u => (u.weekly_consistency_score || 0) < 40);
+    const topPerformers = [...students].sort((a, b) => (b.current_streak || 0) - (a.current_streak || 0)).slice(0, 3);
     
+    // validSubs are already filtered for is_draft=false in fetchAllData
     const todayCount = submissions.filter(s => isToday(new Date(s.submitted_date))).length;
     const yesterdayCount = submissions.filter(s => isYesterday(new Date(s.submitted_date))).length;
     
@@ -746,22 +751,35 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark' }
                           {sub.review?.status === 'excellent' ? <Star size={24} /> : 
                            sub.review?.status === 'flagged' ? <AlertCircle size={24} /> : <Clock size={24} />}
                         </div>
-                        <div className="min-w-0 flex-1">
-                          <h4 className={`font-black truncate ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{sub.task_completed}</h4>
-                          <p className={`text-xs ${theme === 'dark' ? 'text-white/40' : 'text-slate-500'}`}>
-                            By <span className="text-violet-400 font-bold">{student?.full_name || student?.username || 'Anonymous Student'}</span> • {format(new Date(sub.submitted_date), 'MMM d, HH:mm')}
-                          </p>
-                          {sub.review?.admin_notes && (
-                            <p className={`text-xs mt-2 p-2 rounded-lg italic border ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white/50' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>
-                              <MessageSquare size={12} className="inline mr-1" />
-                              "{sub.review.admin_notes}"
-                            </p>
+                        <div className="min-w-0 flex-1 flex items-start gap-4">
+                          {(sub.proof_url?.match(/\.(jpeg|jpg|gif|png|webp)$/) || sub.proof_url?.includes('supabase.co/storage/v1/object/public/proofs/')) && (
+                            <div 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setShowLightbox(sub.proof_url);
+                              }}
+                              className="hidden sm:block w-16 h-16 rounded-xl overflow-hidden border border-white/10 flex-shrink-0 cursor-zoom-in hover:border-violet-500/50 transition-all"
+                            >
+                              <img src={sub.proof_url} alt="Proof thumb" className="w-full h-full object-cover" />
+                            </div>
                           )}
-                          {sub.review?.admin?.full_name && (
-                            <p className="text-[10px] mt-1 text-violet-400 font-bold uppercase tracking-widest">
-                              Reviewed by {sub.review.admin.full_name}
+                          <div className="flex-1 min-w-0">
+                            <h4 className={`font-black truncate ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{sub.task_completed}</h4>
+                            <p className={`text-xs ${theme === 'dark' ? 'text-white/40' : 'text-slate-500'}`}>
+                              By <span className="text-violet-400 font-bold">{student?.full_name || student?.username || 'Anonymous Student'}</span> • {format(new Date(sub.submitted_date), 'MMM d, HH:mm')}
                             </p>
-                          )}
+                            {sub.review?.admin_notes && (
+                              <p className={`text-xs mt-2 p-2 rounded-lg italic border ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white/50' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>
+                                <MessageSquare size={12} className="inline mr-1" />
+                                "{sub.review.admin_notes}"
+                              </p>
+                            )}
+                            {sub.review?.admin?.full_name && (
+                              <p className="text-[10px] mt-1 text-violet-400 font-bold uppercase tracking-widest">
+                                Reviewed by {sub.review.admin.full_name}
+                              </p>
+                            )}
+                          </div>
                         </div>
                       </div>
 
@@ -923,15 +941,43 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark' }
                    <p className={`text-sm font-medium italic ${theme === 'dark' ? 'text-white/60' : 'text-slate-600'}`}>"{selectedSubmission.reflection}"</p>
                    
                    {selectedSubmission.proof_url && (
-                     <a 
-                       href={selectedSubmission.proof_url} 
-                       target="_blank" 
-                       rel="noreferrer"
-                       className="mt-4 flex items-center gap-2 text-violet-400 font-bold hover:text-violet-300 transition-colors"
-                     >
-                       <ExternalLink size={16} />
-                       View Proof Artifact
-                     </a>
+                     <div className="mt-4 space-y-3">
+                       <span className="text-[10px] font-black uppercase text-violet-400 tracking-widest block">Artifact Proof</span>
+                       {selectedSubmission.proof_url.match(/\.(jpeg|jpg|gif|png|webp)$/) || selectedSubmission.proof_url.includes('supabase.co/storage/v1/object/public/proofs/') ? (
+                         <div className="relative group overflow-hidden rounded-2xl border border-white/10 aspect-video bg-black/20">
+                           <img 
+                             src={selectedSubmission.proof_url} 
+                             alt="Proof" 
+                             className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-500"
+                           />
+                           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                             <button 
+                               onClick={() => setShowLightbox(selectedSubmission!.proof_url)}
+                               className="bg-white text-black px-4 py-2 rounded-xl font-bold flex items-center gap-2 shadow-xl scale-95 group-hover:scale-100 transition-transform"
+                               type="button"
+                             >
+                               <Maximize2 size={16} />
+                               Full View
+                             </button>
+                           </div>
+                         </div>
+                       ) : (
+                         <a 
+                           href={selectedSubmission.proof_url} 
+                           target="_blank" 
+                           rel="noreferrer"
+                           className={`flex items-center justify-between p-4 rounded-xl border transition-all ${
+                             theme === 'dark' ? 'bg-white/5 border-white/10 hover:border-violet-500/50 text-white' : 'bg-slate-50 border-slate-200 hover:border-violet-300'
+                           }`}
+                         >
+                           <div className="flex items-center gap-2 text-violet-400 font-bold hover:text-violet-300 transition-colors">
+                             <ExternalLink size={16} />
+                             View Proof Artifact (Link)
+                           </div>
+                           <Maximize2 size={16} className="opacity-40" />
+                         </a>
+                       )}
+                     </div>
                    )}
                 </div>
 
@@ -979,6 +1025,35 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark' }
            </motion.div>
         </div>
       )}
+
+      {/* Lightbox Overlay */}
+      <AnimatePresence>
+        {showLightbox && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/95"
+            onClick={() => setShowLightbox(null)}
+          >
+            <button 
+              onClick={() => setShowLightbox(null)}
+              className="absolute top-6 right-6 p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all"
+            >
+              <X size={32} />
+            </button>
+            <motion.img
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              src={showLightbox}
+              alt="Full Proof"
+              className="max-h-full max-w-full rounded-lg shadow-2xl object-contain"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

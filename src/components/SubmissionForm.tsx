@@ -1,7 +1,7 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '@/src/lib/supabase';
-import { Loader2, Send, CheckCircle2, Link as LinkIcon, Image as ImageIcon } from 'lucide-react';
+import { Loader2, Send, CheckCircle2, Link as LinkIcon, Image as ImageIcon, Save } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { generateSocialPosts } from '@/src/lib/gemini';
 import confetti from 'canvas-confetti';
@@ -23,17 +23,66 @@ export const SubmissionForm: React.FC<SubmissionFormProps> = ({ userId, onSucces
   const [proofType, setProofType] = useState<'link' | 'screenshot'>('link');
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [existingDraftId, setExistingDraftId] = useState<string | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Fetch existing draft for today
+  useEffect(() => {
+    const fetchDraft = async () => {
+      const today = format(new Date(), 'yyyy-MM-dd');
+      const { data, error: draftError } = await supabase
+        .from('submissions')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('submitted_date', today)
+        .eq('is_draft', true)
+        .single();
+
+      if (data) {
+        setExistingDraftId(data.id);
+        setTaskCompleted(data.task_completed || '');
+        setTimeSpent(data.time_spent?.toString() || '');
+        setReflection(data.reflection || '');
+        setProofUrl(data.proof_url || '');
+        if (data.proof_url) {
+          setProofType('link'); // Default to link if content exists
+        }
+      }
+    };
+
+    if (userId) {
+      fetchDraft();
+    }
+  }, [userId]);
+
+  const handleSubmit = async (e: React.FormEvent, asDraft: boolean = false) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+
+    // Validation for final submission
+    if (!asDraft) {
+      if (!taskCompleted) {
+        setError('Task name is required');
+        setLoading(false);
+        return;
+      }
+      if (!timeSpent) {
+        setError('Time spent is required');
+        setLoading(false);
+        return;
+      }
+      if (!reflection) {
+        setError('Reflection is required');
+        setLoading(false);
+        return;
+      }
+    }
 
     try {
       const today = format(new Date(), 'yyyy-MM-dd');
       let finalProofUrl = proofUrl;
 
-      // Handle file upload if screenshot is selected
+      // Handle file upload if screenshot is selected and a new file is provided
       if (proofType === 'screenshot' && file) {
         const fileExt = file.name.split('.').pop();
         const fileName = `${userId}/${Date.now()}.${fileExt}`;
@@ -50,47 +99,73 @@ export const SubmissionForm: React.FC<SubmissionFormProps> = ({ userId, onSucces
         finalProofUrl = publicUrl;
       }
       
-      // 1. Submit to Supabase
-      const { error: submitError } = await supabase.from('submissions').insert([
-        {
-          user_id: userId,
-          task_completed: taskCompleted,
+      const submissionData = {
+        user_id: userId,
+        task_completed: taskCompleted,
+        time_spent: timeSpent ? parseInt(timeSpent) : 0,
+        reflection,
+        proof_url: finalProofUrl,
+        submitted_date: today,
+        is_draft: asDraft
+      };
+
+      if (existingDraftId) {
+        // Update existing record
+        const { error: submitError } = await supabase
+          .from('submissions')
+          .update(submissionData)
+          .eq('id', existingDraftId);
+
+        if (submitError) throw submitError;
+      } else {
+        // Insert new record
+        const { error: submitError } = await supabase.from('submissions').insert([submissionData]);
+        if (submitError) throw submitError;
+      }
+
+      if (!asDraft) {
+        // 2. Confetti for encouragement
+        confetti({
+          particleCount: 100,
+          spread: 70,
+          origin: { y: 0.6 },
+          colors: ['#7C3AED', '#C084FC', '#FFFFFF']
+        });
+
+        // 3. Generate Posts via Gemini
+        const posts = await generateSocialPosts({
+          task_name: taskCompleted,
           time_spent: parseInt(timeSpent),
           reflection,
-          proof_url: finalProofUrl,
-          submitted_date: today,
-        },
-      ]);
+        });
 
-      if (submitError) throw submitError;
-
-      // 2. Confetti for encouragement
-      confetti({
-        particleCount: 100,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ['#7C3AED', '#C084FC', '#FFFFFF']
-      });
-
-      // 3. Generate Posts via Gemini
-      const posts = await generateSocialPosts({
-        task_name: taskCompleted,
-        time_spent: parseInt(timeSpent),
-        reflection,
-      });
-
-      onSuccess(posts);
-      toast.success('Nicely done! Work submitted.');
-      
-      // Reset
-      setTaskCompleted('');
-      setTimeSpent('');
-      setReflection('');
-      setProofUrl('');
-      setFile(null);
+        onSuccess(posts);
+        toast.success('Nicely done! Work submitted.');
+        
+        // Reset
+        setTaskCompleted('');
+        setTimeSpent('');
+        setReflection('');
+        setProofUrl('');
+        setFile(null);
+        setExistingDraftId(null);
+      } else {
+        toast.success('Draft saved successfully!');
+        // Refresh draft ID if we just inserted
+        if (!existingDraftId) {
+            const { data } = await supabase
+                .from('submissions')
+                .select('id')
+                .eq('user_id', userId)
+                .eq('submitted_date', today)
+                .eq('is_draft', true)
+                .single();
+            if (data) setExistingDraftId(data.id);
+        }
+      }
     } catch (err: any) {
       setError(err.message);
-      toast.error(err.message || 'Submission failed');
+      toast.error(err.message || 'Action failed');
     } finally {
       setLoading(false);
     }
@@ -105,7 +180,7 @@ export const SubmissionForm: React.FC<SubmissionFormProps> = ({ userId, onSucces
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-5">
+      <form onSubmit={(e) => handleSubmit(e, false)} className="space-y-5">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className={`block text-xs font-bold uppercase tracking-widest mb-1.5 ${theme === 'dark' ? 'text-violet-400/60' : 'text-slate-500'}`}>
@@ -113,7 +188,6 @@ export const SubmissionForm: React.FC<SubmissionFormProps> = ({ userId, onSucces
             </label>
             <input
               type="text"
-              required
               value={taskCompleted}
               onChange={(e) => setTaskCompleted(e.target.value)}
               className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-violet-500 outline-none transition-all ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white placeholder:text-white/20' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400'}`}
@@ -126,7 +200,6 @@ export const SubmissionForm: React.FC<SubmissionFormProps> = ({ userId, onSucces
             </label>
             <input
               type="number"
-              required
               value={timeSpent}
               onChange={(e) => setTimeSpent(e.target.value)}
               className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-violet-500 outline-none transition-all ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white placeholder:text-white/20' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400'}`}
@@ -140,7 +213,6 @@ export const SubmissionForm: React.FC<SubmissionFormProps> = ({ userId, onSucces
             Reflection (What did you learn?)
           </label>
           <textarea
-            required
             value={reflection}
             onChange={(e) => setReflection(e.target.value)}
             rows={3}
@@ -211,14 +283,26 @@ export const SubmissionForm: React.FC<SubmissionFormProps> = ({ userId, onSucces
           <p className="text-red-400 text-xs">{error}</p>
         )}
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full md:w-auto bg-violet-600 hover:bg-violet-700 text-white font-bold px-8 py-3 rounded-xl transition-all shadow-lg shadow-violet-900/40 flex items-center justify-center gap-2 disabled:opacity-50"
-        >
-          {loading ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}
-          Submit Daily Work
-        </button>
+        <div className="flex flex-col md:flex-row gap-3 mt-6">
+          <button
+            type="submit"
+            disabled={loading}
+            className="flex-1 bg-violet-600 hover:bg-violet-700 text-white font-bold px-8 py-3 rounded-xl transition-all shadow-lg shadow-violet-900/40 flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            {loading ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}
+            Submit Daily Work
+          </button>
+          
+          <button
+            type="button"
+            disabled={loading}
+            onClick={(e) => handleSubmit(e as any, true)}
+            className={`flex-1 font-bold px-8 py-3 rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50 border ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white hover:bg-white/10' : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'}`}
+          >
+            {loading ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
+            Save as Draft
+          </button>
+        </div>
       </form>
     </div>
   );

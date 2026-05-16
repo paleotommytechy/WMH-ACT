@@ -89,6 +89,7 @@ export interface Submission {
   proof_url: string | null;
   proof_filename: string | null;
   submitted_date: string;
+  is_draft: boolean;
   created_at: string;
   review?: SubmissionReview;
 }

@@ -11,8 +11,9 @@ import { PublicGenerator } from './components/PublicGenerator';
 import { AdminDashboard } from './components/AdminDashboard';
 import { ProfileSetup } from './components/ProfileSetup';
 import { ProfileEditor } from './components/ProfileEditor';
+import { SubmissionDetailModal } from './components/SubmissionDetailModal';
 import { 
-  Loader2, Plus, Calendar, Clock, ChevronRight, TrendingUp, 
+  Loader2, Plus, Calendar, Clock, ChevronRight, ChevronDown, TrendingUp, 
   Shield, User as UserIcon, Star, CheckCircle2, AlertCircle 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -26,6 +27,9 @@ export default function App() {
   const [submissions, setSubmissions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [generatedPosts, setGeneratedPosts] = useState<{ linkedin: string; whatsapp: string } | null>(null);
+  const [selectedSubForModal, setSelectedSubForModal] = useState<any | null>(null);
+  const [isSubmitCollapsed, setIsSubmitCollapsed] = useState(window.innerWidth < 768);
+  const [isHistoryCollapsed, setIsHistoryCollapsed] = useState(window.innerWidth < 768);
 
   const [activeTab, setActiveTab] = useState<'daily' | 'weekly' | 'profile'>('daily');
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
@@ -173,8 +177,8 @@ export default function App() {
   const calculateStreak = (subs: any[]) => {
     if (!subs || subs.length === 0) return { current: 0, longest: 0 };
     
-    // Filter out flagged submissions for streak calculation
-    const validSubs = subs.filter(s => !s.review || s.review.status !== 'flagged');
+    // Filter out flagged submissions and drafts for streak calculation
+    const validSubs = subs.filter(s => (!s.review || s.review.status !== 'flagged') && !s.is_draft);
     if (validSubs.length === 0) return { current: 0, longest: 0 };
 
     // Get unique dates sorted descending
@@ -244,6 +248,7 @@ export default function App() {
   const weeklyTotalMinutes = submissions
     .filter(s => isSameWeek(new Date(s.submitted_date), new Date()))
     .filter(s => !s.review || s.review.status !== 'flagged')
+    .filter(s => !s.is_draft)
     .reduce((acc, s) => acc + s.time_spent, 0);
 
   return (
@@ -328,7 +333,28 @@ export default function App() {
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-8">
-              <SubmissionForm userId={session.user.id} theme={theme} onSuccess={onSubmissionSuccess} />
+              <div className="lg:hidden mb-4">
+                <button 
+                  onClick={() => setIsSubmitCollapsed(!isSubmitCollapsed)}
+                  className={`w-full p-4 rounded-2xl flex items-center justify-between font-bold border ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'}`}
+                >
+                  <span className="flex items-center gap-2">
+                    <Plus size={20} className="text-violet-400" />
+                    Daily Accountability
+                  </span>
+                  <motion.div animate={{ rotate: isSubmitCollapsed ? 0 : 180 }}>
+                    <ChevronDown size={20} />
+                  </motion.div>
+                </button>
+              </div>
+
+              <motion.div 
+                initial={false}
+                animate={{ height: isSubmitCollapsed && window.innerWidth < 768 ? 0 : 'auto', opacity: isSubmitCollapsed && window.innerWidth < 768 ? 0 : 1 }}
+                className="overflow-hidden"
+              >
+                <SubmissionForm userId={session.user.id} theme={theme} onSuccess={onSubmissionSuccess} />
+              </motion.div>
               
               <AnimatePresence>
                 {generatedPosts && (
@@ -342,13 +368,24 @@ export default function App() {
 
               <section className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <h2 className={`text-xl font-bold flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-                    <Calendar size={20} className="text-violet-400" />
-                    Past Submissions
-                  </h2>
+                  <header className={`flex-1 flex items-center justify-between p-2 lg:p-0 rounded-2xl lg:rounded-none transition-colors ${window.innerWidth < 768 && 'cursor-pointer'} `} onClick={() => window.innerWidth < 768 && setIsHistoryCollapsed(!isHistoryCollapsed)}>
+                    <h2 className={`text-xl font-bold flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                      <Calendar size={20} className="text-violet-400" />
+                      Past Submissions
+                    </h2>
+                    <div className="lg:hidden">
+                       <motion.div animate={{ rotate: isHistoryCollapsed ? 0 : 180 }}>
+                        <ChevronDown size={20} className={theme === 'dark' ? 'text-white' : 'text-slate-900'} />
+                      </motion.div>
+                    </div>
+                  </header>
                 </div>
                 
-                <div className="space-y-3">
+                <motion.div 
+                  initial={false}
+                  animate={{ height: isHistoryCollapsed && window.innerWidth < 768 ? 0 : 'auto', opacity: isHistoryCollapsed && window.innerWidth < 768 ? 0 : 1 }}
+                  className="space-y-3 overflow-hidden"
+                >
                   {submissions.length === 0 ? (
                     <div className={`p-12 border-2 border-dashed rounded-2xl text-center ${theme === 'dark' ? 'border-white/5' : 'border-slate-100'}`}>
                       <Plus className={`mx-auto mb-2 ${theme === 'dark' ? 'text-white/10' : 'text-slate-200'}`} size={32} />
@@ -360,7 +397,8 @@ export default function App() {
                         key={s.id}
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
-                        className={`backdrop-blur-sm p-5 rounded-2xl border shadow-sm transition-all flex items-center justify-between group ${theme === 'dark' ? 'bg-white/5 border-white/10 hover:border-violet-500/50' : 'bg-white border-slate-200 hover:border-violet-300'}`}
+                        onClick={() => setSelectedSubForModal(s)}
+                        className={`backdrop-blur-sm p-5 rounded-2xl border shadow-sm transition-all flex items-center justify-between group cursor-pointer ${theme === 'dark' ? 'bg-white/5 border-white/10 hover:border-violet-500/50' : 'bg-white border-slate-200 hover:border-violet-300'}`}
                       >
                         <div className="flex items-center gap-4">
                           <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${theme === 'dark' ? 'bg-violet-500/10 text-violet-400 group-hover:bg-violet-600 group-hover:text-white' : 'bg-violet-50 text-violet-600 group-hover:bg-violet-100'}`}>
@@ -376,6 +414,11 @@ export default function App() {
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
+                          {s.is_draft && (
+                            <div className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase border ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white/40' : 'bg-slate-100 border-slate-200 text-slate-400'}`}>
+                              Draft
+                            </div>
+                          )}
                           {s.review && (
                             <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-black uppercase border ${
                               s.review.status === 'excellent' ? 'bg-amber-500/10 border-amber-500/20 text-amber-500' :
@@ -390,20 +433,17 @@ export default function App() {
                             </div>
                           )}
                           {s.proof_url && (
-                            <a
-                              href={s.proof_url}
-                              target="_blank"
-                              rel="noreferrer"
+                            <div
                               className={`p-2 rounded-lg transition-all ${theme === 'dark' ? 'bg-white/5 text-white/40 hover:bg-violet-500/20 hover:text-violet-400' : 'bg-slate-100 text-slate-400 hover:bg-violet-50 hover:text-violet-600'}`}
                             >
                               <ChevronRight size={20} />
-                            </a>
+                            </div>
                           )}
                         </div>
                       </motion.div>
                     ))
                   )}
-                </div>
+                </motion.div>
               </section>
             </div>
 
@@ -443,6 +483,12 @@ export default function App() {
         )}
       </div>
     )}
+      <SubmissionDetailModal 
+        isOpen={!!selectedSubForModal} 
+        submission={selectedSubForModal} 
+        onClose={() => setSelectedSubForModal(null)} 
+        theme={theme}
+      />
     </Layout>
   );
 }

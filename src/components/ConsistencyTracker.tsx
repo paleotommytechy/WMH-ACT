@@ -12,13 +12,13 @@ export const ConsistencyTracker: React.FC<ConsistencyTrackerProps> = ({ submissi
   
   const hasSubmissionOnDate = (date: Date) => {
     return submissions
-      .filter(s => !s.review || s.review.status !== 'flagged')
+      .filter(s => (!s.review || s.review.status !== 'flagged') && !s.is_draft)
       .some(s => isSameDay(new Date(s.submitted_date), date));
   };
 
   const consistencyRate = Math.round(
     (submissions
-      .filter(s => !s.review || s.review.status !== 'flagged')
+      .filter(s => (!s.review || s.review.status !== 'flagged') && !s.is_draft)
       .filter(s => {
         const d = new Date(s.submitted_date);
         return d >= subDays(new Date(), 30);
