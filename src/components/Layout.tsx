@@ -1,7 +1,9 @@
 
-import React from 'react';
-import { LogOut, User as UserIcon, Sun, Moon } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { LogOut, User as UserIcon, Sun, Moon, Bell } from 'lucide-react';
 import { supabase } from '@/src/lib/supabase';
+import { NotificationCenter } from './NotificationCenter';
+import { NotificationService } from '@/src/lib/notifications';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -14,9 +16,49 @@ interface LayoutProps {
 }
 
 export const Layout: React.FC<LayoutProps> = ({ children, user, profile, hideNav, onTabChange, theme, toggleTheme }) => {
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
   };
+
+  useEffect(() => {
+    if (user) {
+      const fetchUnread = async () => {
+        const { count, error } = await supabase
+          .from('notifications')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .eq('is_read', false);
+        
+        if (!error && count !== null) {
+          setUnreadCount(count);
+        }
+      };
+
+      fetchUnread();
+
+      // Real-time subscription for new notifications
+      const channel = supabase
+        .channel('notifications-changes')
+        .on('postgres_changes', { 
+          event: 'INSERT', 
+          schema: 'public', 
+          table: 'notifications',
+          filter: `user_id=eq.${user.id}`
+        }, (payload) => {
+          setUnreadCount(prev => prev + 1);
+          // Show local notification if permission granted
+          NotificationService.showLocalNotification(payload.new.title, payload.new.message);
+        })
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [user]);
 
   return (
     <div className={`min-h-screen font-sans flex flex-col transition-colors duration-300 ${theme === 'dark' ? 'bg-[#130722] text-white' : 'bg-slate-50 text-slate-900'}`}>
@@ -43,6 +85,30 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, profile, hideNav
 
             {user && (
               <div className="flex items-center gap-4">
+                <div className="relative">
+                  <button
+                    onClick={() => {
+                      setIsNotificationsOpen(!isNotificationsOpen);
+                      if (isNotificationsOpen) setUnreadCount(0); // Optimistic clear
+                    }}
+                    className={`p-2 rounded-full transition-colors relative ${theme === 'dark' ? 'text-neutral-400 hover:text-white hover:bg-white/10' : 'text-slate-400 hover:text-slate-900 hover:bg-slate-100'}`}
+                    title="Notifications"
+                  >
+                    <Bell size={20} />
+                    {unreadCount > 0 && (
+                      <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-rose-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-[#130722]">
+                        {unreadCount > 9 ? '9+' : unreadCount}
+                      </span>
+                    )}
+                  </button>
+                  <NotificationCenter 
+                    userId={user.id} 
+                    theme={theme!} 
+                    isOpen={isNotificationsOpen} 
+                    onClose={() => setIsNotificationsOpen(false)} 
+                  />
+                </div>
+
                 <button
                   onClick={toggleTheme}
                   className={`p-2 rounded-full transition-colors ${theme === 'dark' ? 'text-neutral-400 hover:text-white hover:bg-white/10' : 'text-violet-300 hover:text-white hover:bg-white/10'}`}

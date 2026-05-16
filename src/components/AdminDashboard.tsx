@@ -18,7 +18,128 @@ interface AdminDashboardProps {
   theme?: 'dark' | 'light';
 }
 
-type AdminView = 'overview' | 'students' | 'submissions' | 'moderation' | 'invite';
+type AdminView = 'overview' | 'students' | 'submissions' | 'moderation' | 'invite' | 'broadcast';
+
+const BroadcastForm: React.FC<{ theme: 'dark' | 'light', users: Profile[] }> = ({ theme, users }) => {
+  const [form, setForm] = useState({
+    title: '',
+    message: '',
+    type: 'admin' as any,
+    target: 'all' as 'all' | 'students' | 'at-risk'
+  });
+  const [sending, setSending] = useState(false);
+
+  const handleSend = async () => {
+    if (!form.title || !form.message) return;
+    setSending(true);
+    try {
+      let targets = [];
+      if (form.target === 'all') {
+        targets = users.map(u => u.id);
+      } else if (form.target === 'students') {
+        targets = users.filter(u => u.community_role === 'student').map(u => u.id);
+      } else if (form.target === 'at-risk') {
+        targets = users.filter(u => (u.weekly_consistency_score || 0) < 40).map(u => u.id);
+      }
+
+      if (targets.length === 0) {
+        toast.error('No target users found.');
+        return;
+      }
+
+      const notifications = targets.map(userId => ({
+        user_id: userId,
+        title: form.title,
+        message: form.message,
+        type: form.type,
+        created_at: new Date().toISOString()
+      }));
+
+      const { error } = await supabase.from('notifications').insert(notifications);
+      if (error) throw error;
+
+      toast.success(`Broadcast sent to ${targets.length} users!`);
+      setForm({ ...form, title: '', message: '' });
+    } catch (err) {
+      console.error('Broadcast error:', err);
+      toast.error('Failed to send broadcast.');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className={`p-8 rounded-3xl border backdrop-blur-xl ${theme === 'dark' ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200 shadow-sm'}`}>
+      <div className="flex items-center gap-3 mb-6">
+        <Send className="text-violet-400" size={24} />
+        <div>
+          <h3 className={`text-2xl font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Platform Broadcast</h3>
+          <p className={`text-sm ${theme === 'dark' ? 'text-white/40' : 'text-slate-500'}`}>Dispatch mission-critical updates to the student body.</p>
+        </div>
+      </div>
+
+      <div className="space-y-6">
+        <div>
+          <label className={`block text-xs font-bold uppercase tracking-widest mb-2 ${theme === 'dark' ? 'text-white/40' : 'text-slate-500'}`}>Title</label>
+          <input 
+            type="text" 
+            placeholder="Critical Mastery Update"
+            value={form.title}
+            onChange={(e) => setForm({...form, title: e.target.value})}
+            className={`w-full px-6 py-3 rounded-2xl border outline-none font-bold ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white focus:border-violet-500' : 'bg-slate-50 border-slate-200'}`}
+          />
+        </div>
+        <div>
+          <label className={`block text-xs font-bold uppercase tracking-widest mb-2 ${theme === 'dark' ? 'text-white/40' : 'text-slate-500'}`}>Message Body</label>
+          <textarea 
+            rows={4}
+            placeholder="Enter the broadcast message content here..."
+            value={form.message}
+            onChange={(e) => setForm({...form, message: e.target.value})}
+            className={`w-full px-6 py-4 rounded-2xl border outline-none font-medium resize-none ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white focus:border-violet-500' : 'bg-slate-50 border-slate-200'}`}
+          />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className={`block text-xs font-bold uppercase tracking-widest mb-2 ${theme === 'dark' ? 'text-white/40' : 'text-slate-500'}`}>Type</label>
+            <select 
+              value={form.type}
+              onChange={(e) => setForm({...form, type: e.target.value as any})}
+              className={`w-full px-6 py-3 rounded-2xl border outline-none font-bold ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200'}`}
+            >
+              <option value="admin">Admin Broadcast</option>
+              <option value="motivation">Motivation Boost</option>
+              <option value="system">System Alert</option>
+            </select>
+          </div>
+          <div>
+            <label className={`block text-xs font-bold uppercase tracking-widest mb-2 ${theme === 'dark' ? 'text-white/40' : 'text-slate-500'}`}>Target Audience</label>
+            <select 
+              value={form.target}
+              onChange={(e) => setForm({...form, target: e.target.value as any})}
+              className={`w-full px-6 py-3 rounded-2xl border outline-none font-bold ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200'}`}
+            >
+              <option value="all">All Registered Users</option>
+              <option value="students">All Active Students</option>
+              <option value="at-risk">At-Risk Students ONLY</option>
+            </select>
+          </div>
+        </div>
+
+        <button 
+          onClick={handleSend}
+          disabled={sending || !form.title || !form.message}
+          className={`w-full py-4 rounded-2xl font-black transition-all flex items-center justify-center gap-3 shadow-xl ${
+            sending ? 'bg-slate-500/30' : 'bg-violet-600 hover:bg-violet-700 text-white shadow-violet-600/20'
+          }`}
+        >
+          {sending ? <RefreshCw className="animate-spin" size={20} /> : <Send size={20} />}
+          {sending ? 'DISPATCHING...' : 'DISPATCH BROADCAST'}
+        </button>
+      </div>
+    </div>
+  );
+};
 
 const InviteForm: React.FC<{ theme: 'dark' | 'light' }> = ({ theme }) => {
   const [form, setForm] = useState({
@@ -330,7 +451,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark' }
 
       if (error) throw error;
       
-      toast.success('Review finalized & Admin assigned');
+      // Send notification to the student
+      await supabase.from('notifications').insert({
+        user_id: selectedSubmission.user_id,
+        title: reviewForm.status === 'excellent' ? '🌟 Superior Achievement!' : '✅ Submission Verified',
+        message: `Your submission "${selectedSubmission.task_completed}" has been reviewed. Status: ${reviewForm.status.toUpperCase()}.`,
+        type: reviewForm.status === 'excellent' ? 'achievement' : 'reminder',
+        priority: reviewForm.status === 'flagged' ? 'high' : 'normal',
+        created_at: new Date().toISOString()
+      });
+      
+      toast.success('Review finalized & Notification sent');
       setSelectedSubmission(null);
       fetchAllData();
     } catch (error) {
@@ -439,6 +570,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark' }
           { id: 'students', label: 'Students', icon: Users },
           { id: 'submissions', label: 'Review Hub', icon: FileText },
           { id: 'invite', label: 'Invite Student', icon: UserCheck },
+          { id: 'broadcast', label: 'Broadcast', icon: Send },
           { id: 'moderation', label: 'Moderation', icon: ShieldAlert },
         ].map((item) => (
           <button
@@ -843,6 +975,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark' }
 
                 <InviteForm theme={theme} />
               </div>
+            </motion.div>
+          )}
+
+          {activeView === 'broadcast' && (
+            <motion.div 
+              key="broadcast"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="space-y-8"
+            >
+              <BroadcastForm theme={theme} users={users} />
             </motion.div>
           )}
 

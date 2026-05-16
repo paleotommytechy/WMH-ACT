@@ -80,6 +80,33 @@ export interface Profile {
   updated_at: string;
 }
 
+export interface NotificationPreference {
+  user_id: string;
+  push_enabled: boolean;
+  whatsapp_enabled: boolean;
+  whatsapp_number: string | null;
+  reminder_frequency: 'daily' | 'twice_daily' | 'weekly';
+  quiet_hours_start: string;
+  quiet_hours_end: string;
+  motivation_enabled: boolean;
+  weekly_summary_enabled: boolean;
+  streak_protection_alerts: boolean;
+}
+
+export interface AppNotification {
+  id: string;
+  user_id: string;
+  title: string;
+  message: string;
+  type: 'system' | 'reminder' | 'alert' | 'motivation' | 'achievement' | 'admin';
+  priority: 'low' | 'normal' | 'high' | 'urgent';
+  is_read: boolean;
+  read_at: string | null;
+  action_url: string | null;
+  metadata: any;
+  created_at: string;
+}
+
 export interface Submission {
   id: string;
   user_id: string;

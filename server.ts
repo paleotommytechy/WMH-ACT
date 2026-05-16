@@ -107,6 +107,88 @@ function setupRoutes(app: Express) {
     }
   });
 
+  // --- Notification System API ---
+
+  // Trigger a notification (internal or admin)
+  app.post("/api/notifications/send", async (req, res) => {
+    const { userId, title, message, type, channels } = req.body;
+    
+    try {
+      // 1. Create In-App Notification
+      const { data: notification, error: nError } = await supabaseAdmin
+        .from('notifications')
+        .insert({
+          user_id: userId,
+          title,
+          message,
+          type: type || 'system',
+          created_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (nError) throw nError;
+
+      // 2. Log Channel Deliveries (Simulation for now)
+      const logs = [];
+      if (channels?.includes('push')) {
+        // Here you would call FCM or Web Push API
+        logs.push({
+          notification_id: notification.id,
+          user_id: userId,
+          channel: 'push',
+          status: 'sent'
+        });
+      }
+
+      if (channels?.includes('whatsapp')) {
+        // Here you would call Twilio or WhatsApp Business API
+        logs.push({
+          notification_id: notification.id,
+          user_id: userId,
+          channel: 'whatsapp',
+          status: 'sent'
+        });
+      }
+
+      if (logs.length > 0) {
+        await supabaseAdmin.from('notification_logs').insert(logs);
+      }
+
+      res.status(200).json({ success: true, notificationId: notification.id });
+    } catch (error: any) {
+      console.error('Notification API error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Scheduled Reminder Trigger (Simplified - can be called by a cron)
+  app.post("/api/notifications/process-queue", async (req, res) => {
+    try {
+      const now = new Date().toISOString();
+      const { data: queue, error: qError } = await supabaseAdmin
+        .from('notification_queue')
+        .select('*')
+        .eq('status', 'pending')
+        .lte('scheduled_for', now);
+
+      if (qError) throw qError;
+
+      for (const item of (queue || [])) {
+        // Process each item (send via API, then update status)
+        // This is where real delivery logic goes
+        await supabaseAdmin
+          .from('notification_queue')
+          .update({ status: 'sent', updated_at: new Date().toISOString() })
+          .eq('id', item.id);
+      }
+
+      res.status(200).json({ processed: queue?.length || 0 });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Global error handler for JSON responses
   app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
     console.error("Global Error Handler:", err);
