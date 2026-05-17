@@ -9,6 +9,7 @@ interface SubmissionDetailModalProps {
   submission: Submission | any;
   isOpen: boolean;
   onClose: () => void;
+  onEditDraft?: (submission: Submission) => void;
   theme?: 'dark' | 'light';
 }
 
@@ -16,6 +17,7 @@ export const SubmissionDetailModal: React.FC<SubmissionDetailModalProps> = ({
   submission, 
   isOpen, 
   onClose, 
+  onEditDraft,
   theme = 'dark' 
 }) => {
   const [showLightbox, setShowLightbox] = useState(false);
@@ -70,12 +72,20 @@ export const SubmissionDetailModal: React.FC<SubmissionDetailModalProps> = ({
 
               {/* Status Badge */}
               {submission.is_draft ? (
-                <div className={`flex items-center gap-2 p-3 rounded-2xl border bg-slate-500/10 border-slate-500/20 text-slate-400`}>
-                  <AlertCircle size={18} />
+                <div className={`flex items-center gap-4 p-4 rounded-2xl border bg-slate-500/10 border-slate-500/20 text-slate-400`}>
+                  <AlertCircle size={20} />
                   <div className="flex-1">
                     <p className="text-[10px] font-black uppercase tracking-widest opacity-60 leading-none mb-1">Current Status</p>
                     <p className="text-sm font-black uppercase">Draft (Unsubmitted)</p>
                   </div>
+                  {onEditDraft && (
+                    <button
+                      onClick={() => onEditDraft(submission)}
+                      className="bg-violet-600 hover:bg-violet-500 text-white px-4 py-2 rounded-xl text-xs font-black uppercase transition-all shadow-lg shadow-violet-600/20"
+                    >
+                      Continue Editing
+                    </button>
+                  )}
                 </div>
               ) : submission.review && (
                 <div className={`flex items-center gap-2 p-3 rounded-2xl border ${

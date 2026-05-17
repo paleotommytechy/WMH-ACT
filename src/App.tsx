@@ -29,6 +29,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [generatedPosts, setGeneratedPosts] = useState<{ linkedin: string; whatsapp: string } | null>(null);
   const [selectedSubForModal, setSelectedSubForModal] = useState<any | null>(null);
+  const [editingDraft, setEditingDraft] = useState<any | null>(null);
   const [isSubmitCollapsed, setIsSubmitCollapsed] = useState(window.innerWidth < 768);
   const [isHistoryCollapsed, setIsHistoryCollapsed] = useState(window.innerWidth < 768);
 
@@ -169,6 +170,7 @@ export default function App() {
 
   const onSubmissionSuccess = (posts: { linkedin: string; whatsapp: string }) => {
     setGeneratedPosts(posts);
+    setEditingDraft(null);
     if (session) {
       fetchSubmissions(session.user.id);
       fetchProfile(session.user.id);
@@ -388,7 +390,13 @@ export default function App() {
                 animate={{ height: isSubmitCollapsed && window.innerWidth < 768 ? 0 : 'auto', opacity: isSubmitCollapsed && window.innerWidth < 768 ? 0 : 1 }}
                 className="overflow-hidden"
               >
-                <SubmissionForm userId={session.user.id} theme={theme} onSuccess={onSubmissionSuccess} />
+                <SubmissionForm 
+                  userId={session.user.id} 
+                  theme={theme} 
+                  onSuccess={onSubmissionSuccess} 
+                  editSubmission={editingDraft}
+                  onCancelEdit={() => setEditingDraft(null)}
+                />
               </motion.div>
               
               <AnimatePresence>
@@ -522,6 +530,12 @@ export default function App() {
         isOpen={!!selectedSubForModal} 
         submission={selectedSubForModal} 
         onClose={() => setSelectedSubForModal(null)} 
+        onEditDraft={(sub) => {
+          setEditingDraft(sub);
+          setSelectedSubForModal(null);
+          setIsSubmitCollapsed(false);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
         theme={theme}
       />
     </Layout>

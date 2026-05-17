@@ -52,6 +52,18 @@ export function ProfileEditor({ profile, onUpdate, onBack, theme = 'dark' }: Pro
 
       // Update local state and form
       updateField('profile_image', publicUrl);
+
+      // Update database immediately to ensure UI consistency
+      const { error: patchError } = await supabase
+        .from('profiles')
+        .update({ profile_image: publicUrl, updated_at: new Date().toISOString() })
+        .eq('id', profile.id);
+      
+      if (patchError) throw patchError;
+
+      // Update parent state immediately
+      onUpdate({ ...profile, profile_image: publicUrl });
+
       toast.success('Identity visual updated!');
     } catch (err: any) {
       console.error('Upload error:', err);
@@ -265,32 +277,34 @@ export function ProfileEditor({ profile, onUpdate, onBack, theme = 'dark' }: Pro
               </div>
               <div className="space-y-2">
                 <label className={`text-[10px] uppercase font-bold tracking-wider ${theme === 'dark' ? 'text-white/40' : 'text-slate-400'}`}>Primary Track</label>
-                <input 
-                  value={formData.primary_track || ''}
-                  onChange={e => updateField('primary_track', e.target.value)}
-                  className={`w-full border rounded-xl px-4 py-3 focus:ring-2 focus:ring-violet-500/50 outline-none transition-all ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
-                />
-              </div>
+              <input 
+                value={formData.primary_track || ''}
+                onChange={e => updateField('primary_track', e.target.value)}
+                placeholder="e.g. Frontend Engineering, Product Design, Fullstack"
+                className={`w-full border rounded-xl px-4 py-3 focus:ring-2 focus:ring-violet-500/50 outline-none transition-all ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
+              />
             </div>
+          </div>
 
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <label className={`text-[10px] uppercase font-bold tracking-wider ${theme === 'dark' ? 'text-white/40' : 'text-slate-400'}`}>Mastery Goals</label>
-                <textarea 
-                  rows={4}
-                  value={formData.goals || ''}
-                  onChange={e => updateField('goals', e.target.value)}
-                  className={`w-full border rounded-xl px-4 py-3 focus:ring-2 focus:ring-violet-500/50 outline-none transition-all resize-none ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className={`text-[10px] uppercase font-bold tracking-wider ${theme === 'dark' ? 'text-white/40' : 'text-slate-400'}`}>Learning Focus</label>
-                <input 
-                  value={formData.learning_focus || ''}
-                  onChange={e => updateField('learning_focus', e.target.value)}
-                  className={`w-full border rounded-xl px-4 py-3 focus:ring-2 focus:ring-violet-500/50 outline-none transition-all ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
-                />
-              </div>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className={`text-[10px] uppercase font-bold tracking-wider ${theme === 'dark' ? 'text-white/40' : 'text-slate-400'}`}>Mastery Goals</label>
+              <textarea 
+                rows={4}
+                value={formData.goals || ''}
+                onChange={e => updateField('goals', e.target.value)}
+                className={`w-full border rounded-xl px-4 py-3 focus:ring-2 focus:ring-violet-500/50 outline-none transition-all resize-none ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className={`text-[10px] uppercase font-bold tracking-wider ${theme === 'dark' ? 'text-white/40' : 'text-slate-400'}`}>Learning Focus</label>
+              <input 
+                value={formData.learning_focus || ''}
+                onChange={e => updateField('learning_focus', e.target.value)}
+                placeholder="e.g. React, TypeScript, System Design"
+                className={`w-full border rounded-xl px-4 py-3 focus:ring-2 focus:ring-violet-500/50 outline-none transition-all ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
+              />
+            </div>
             </div>
           </div>
         </div>

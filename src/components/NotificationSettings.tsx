@@ -15,6 +15,48 @@ interface NotificationSettingsProps {
   theme: 'dark' | 'light';
 }
 
+const Section = ({ title, icon: Icon, children, theme }: { title: string, icon: any, children: React.ReactNode, theme: 'dark' | 'light' }) => (
+  <div className={cn(
+    "p-6 rounded-2xl border backdrop-blur-sm space-y-4",
+    theme === 'dark' ? "bg-white/5 border-white/10" : "bg-white border-slate-200"
+  )}>
+    <div className="flex items-center gap-3 mb-2">
+      <div className="w-10 h-10 rounded-xl bg-violet-600/10 flex items-center justify-center">
+        <Icon className="text-violet-400" size={20} />
+      </div>
+      <h3 className={cn("font-bold text-lg", theme === 'dark' ? "text-white" : "text-slate-900")}>{title}</h3>
+    </div>
+    <div className="space-y-4">
+      {children}
+    </div>
+  </div>
+);
+
+const Toggle = ({ label, description, enabled, onToggle, icon: Icon, theme }: { label: string, description: string, enabled: boolean, onToggle: () => void, icon?: any, theme: 'dark' | 'light' }) => (
+  <div className="flex items-center justify-between gap-4">
+    <div className="flex gap-4 items-start">
+      {Icon && <div className={cn("mt-1 p-2 rounded-lg", theme === 'dark' ? "bg-white/5 text-white/40" : "bg-slate-50 text-slate-400")}><Icon size={16} /></div>}
+      <div>
+        <h4 className={cn("font-bold text-sm", theme === 'dark' ? "text-white" : "text-slate-900")}>{label}</h4>
+        <p className={cn("text-xs", theme === 'dark' ? "text-white/40" : "text-slate-500")}>{description}</p>
+      </div>
+    </div>
+    <button 
+      type="button"
+      onClick={onToggle}
+      className={cn(
+        "w-12 h-6 rounded-full p-1 transition-all duration-300 relative shrink-0",
+        enabled ? "bg-violet-600" : (theme === 'dark' ? "bg-white/10" : "bg-slate-200")
+      )}
+    >
+      <div className={cn(
+        "w-4 h-4 rounded-full bg-white transition-all duration-300",
+        enabled ? "translate-x-6" : "translate-x-0"
+      )} />
+    </button>
+  </div>
+);
+
 export const NotificationSettings: React.FC<NotificationSettingsProps> = ({ 
   userId, theme 
 }) => {
@@ -29,7 +71,6 @@ export const NotificationSettings: React.FC<NotificationSettingsProps> = ({
         if (data) {
           setPrefs(data);
         } else {
-          // Default preferences
           setPrefs({
             user_id: userId,
             push_enabled: false,
@@ -69,10 +110,10 @@ export const NotificationSettings: React.FC<NotificationSettingsProps> = ({
           toast.success('Push notifications active!');
         } catch (err) {
           console.error('Push subscription failed:', err);
-          toast.error('Could not activate push notifications. Ensure VAPID keys are configured.');
+          toast.error('Could not activate push notifications.');
         }
       } else {
-        toast.error('Permission denied. Please enable notifications in your browser settings.');
+        toast.error('Permission denied.');
       }
     } else {
       setPrefs({ ...prefs, push_enabled: false });
@@ -87,7 +128,7 @@ export const NotificationSettings: React.FC<NotificationSettingsProps> = ({
       toast.success('Accountability settings synced.');
     } catch (err) {
       console.error('Error saving:', err);
-      toast.error('Sync failed. Try again.');
+      toast.error('Sync failed.');
     } finally {
       setSaving(false);
     }
@@ -101,58 +142,17 @@ export const NotificationSettings: React.FC<NotificationSettingsProps> = ({
     );
   }
 
-  const Section = ({ title, icon: Icon, children }: { title: string, icon: any, children: React.ReactNode }) => (
-    <div className={cn(
-      "p-6 rounded-2xl border backdrop-blur-sm space-y-4",
-      theme === 'dark' ? "bg-white/5 border-white/10" : "bg-white border-slate-200"
-    )}>
-      <div className="flex items-center gap-3 mb-2">
-        <div className="w-10 h-10 rounded-xl bg-violet-600/10 flex items-center justify-center">
-          <Icon className="text-violet-400" size={20} />
-        </div>
-        <h3 className={cn("font-bold text-lg", theme === 'dark' ? "text-white" : "text-slate-900")}>{title}</h3>
-      </div>
-      <div className="space-y-4">
-        {children}
-      </div>
-    </div>
-  );
-
-  const Toggle = ({ label, description, enabled, onToggle, icon: Icon }: { label: string, description: string, enabled: boolean, onToggle: () => void, icon?: any }) => (
-    <div className="flex items-center justify-between gap-4">
-      <div className="flex gap-4 items-start">
-        {Icon && <div className={cn("mt-1 p-2 rounded-lg", theme === 'dark' ? "bg-white/5 text-white/40" : "bg-slate-50 text-slate-400")}><Icon size={16} /></div>}
-        <div>
-          <h4 className={cn("font-bold text-sm", theme === 'dark' ? "text-white" : "text-slate-900")}>{label}</h4>
-          <p className={cn("text-xs", theme === 'dark' ? "text-white/40" : "text-slate-500")}>{description}</p>
-        </div>
-      </div>
-      <button 
-        onClick={onToggle}
-        className={cn(
-          "w-12 h-6 rounded-full p-1 transition-all duration-300 relative shrink-0",
-          enabled ? "bg-violet-600" : (theme === 'dark' ? "bg-white/10" : "bg-slate-200")
-        )}
-      >
-        <div className={cn(
-          "w-4 h-4 rounded-full bg-white transition-all duration-300",
-          enabled ? "translate-x-6" : "translate-x-0"
-        )} />
-      </button>
-    </div>
-  );
-
   return (
     <div className="space-y-8">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Core Channels */}
-        <Section title="Delivery Channels" icon={Smartphone}>
+        <Section title="Delivery Channels" icon={Smartphone} theme={theme}>
           <Toggle 
             label="Push Notifications" 
             description="Real-time alerts on your browser or mobile device."
             enabled={prefs?.push_enabled || false}
             onToggle={handlePushEnable}
             icon={Bell}
+            theme={theme}
           />
           <div className={cn("h-px", theme === 'dark' ? "bg-white/5" : "bg-slate-100")} />
           <Toggle 
@@ -161,6 +161,7 @@ export const NotificationSettings: React.FC<NotificationSettingsProps> = ({
             enabled={prefs?.whatsapp_enabled || false}
             onToggle={() => handleToggle('whatsapp_enabled')}
             icon={MessageCircle}
+            theme={theme}
           />
           {prefs?.whatsapp_enabled && (
              <motion.div 
@@ -183,8 +184,7 @@ export const NotificationSettings: React.FC<NotificationSettingsProps> = ({
           )}
         </Section>
 
-        {/* Schedule */}
-        <Section title="Optimization" icon={Clock}>
+        <Section title="Optimization" icon={Clock} theme={theme}>
           <div className="space-y-4">
             <div>
               <label className={cn("text-xs font-black uppercase tracking-widest mb-2 block", theme === 'dark' ? "text-white/40" : "text-slate-400")}>Reminder Frequency</label>
@@ -231,14 +231,14 @@ export const NotificationSettings: React.FC<NotificationSettingsProps> = ({
           </div>
         </Section>
 
-        {/* Content Type */}
-        <Section title="Intelligence Filters" icon={Zap}>
+        <Section title="Intelligence Filters" icon={Zap} theme={theme}>
           <Toggle 
             label="Motivation Nudges" 
             description="AI-generated productivity boosts and quotes."
             enabled={prefs?.motivation_enabled || false}
             onToggle={() => handleToggle('motivation_enabled')}
             icon={Zap}
+            theme={theme}
           />
           <Toggle 
             label="Streak Danger Alerts" 
@@ -246,6 +246,7 @@ export const NotificationSettings: React.FC<NotificationSettingsProps> = ({
             enabled={prefs?.streak_protection_alerts || false}
             onToggle={() => handleToggle('streak_protection_alerts')}
             icon={Shield}
+            theme={theme}
           />
           <Toggle 
             label="Weekly Summaries" 
@@ -253,11 +254,11 @@ export const NotificationSettings: React.FC<NotificationSettingsProps> = ({
             enabled={prefs?.weekly_summary_enabled || false}
             onToggle={() => handleToggle('weekly_summary_enabled')}
             icon={Trophy}
+            theme={theme}
           />
         </Section>
       </div>
 
-      {/* Floating Save Button */}
       <button 
         onClick={handleSave}
         disabled={saving}

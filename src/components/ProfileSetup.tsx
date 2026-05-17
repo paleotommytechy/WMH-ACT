@@ -161,7 +161,20 @@ export function ProfileSetup({ userId, email, onComplete, theme = 'dark' }: Prof
                     required
                     value={formData.role_title}
                     onChange={e => updateField('role_title', e.target.value)}
-                    placeholder="e.g. UI/UX Designer or Backend Engineer"
+                    placeholder="e.g. Frontend Engineering, Backend, UI/UX"
+                    className={`w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white placeholder-white/20' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400'}`}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className={`text-xs font-black uppercase tracking-widest flex items-center gap-2 ${theme === 'dark' ? 'text-violet-400' : 'text-violet-600'}`}>
+                    <Target size={14} /> Learning Focus
+                  </label>
+                  <input 
+                    required
+                    value={(formData as any).learning_focus || ''}
+                    onChange={e => updateField('learning_focus', e.target.value)}
+                    placeholder="e.g. React, TypeScript, System Design"
                     className={`w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white placeholder-white/20' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400'}`}
                   />
                 </div>

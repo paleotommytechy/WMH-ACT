@@ -8,13 +8,17 @@ import confetti from 'canvas-confetti';
 import { format } from 'date-fns';
 import { toast } from 'react-hot-toast';
 
+import { Submission } from '@/src/lib/types';
+
 interface SubmissionFormProps {
   userId: string;
   theme: 'dark' | 'light';
   onSuccess: (posts: { linkedin: string; whatsapp: string }) => void;
+  editSubmission?: Submission | null;
+  onCancelEdit?: () => void;
 }
 
-export const SubmissionForm: React.FC<SubmissionFormProps> = ({ userId, onSuccess, theme }) => {
+export const SubmissionForm: React.FC<SubmissionFormProps> = ({ userId, onSuccess, theme, editSubmission, onCancelEdit }) => {
   const [loading, setLoading] = useState(false);
   const [taskCompleted, setTaskCompleted] = useState('');
   const [timeSpent, setTimeSpent] = useState('');
@@ -25,34 +29,27 @@ export const SubmissionForm: React.FC<SubmissionFormProps> = ({ userId, onSucces
   const [error, setError] = useState<string | null>(null);
   const [existingDraftId, setExistingDraftId] = useState<string | null>(null);
 
-  // Fetch existing draft for today
+  // Handle edit submission prop
   useEffect(() => {
-    const fetchDraft = async () => {
-      const today = format(new Date(), 'yyyy-MM-dd');
-      const { data, error: draftError } = await supabase
-        .from('submissions')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('submitted_date', today)
-        .eq('is_draft', true)
-        .single();
-
-      if (data) {
-        setExistingDraftId(data.id);
-        setTaskCompleted(data.task_completed || '');
-        setTimeSpent(data.time_spent?.toString() || '');
-        setReflection(data.reflection || '');
-        setProofUrl(data.proof_url || '');
-        if (data.proof_url) {
-          setProofType('link'); // Default to link if content exists
-        }
+    if (editSubmission) {
+      setExistingDraftId(editSubmission.id);
+      setTaskCompleted(editSubmission.task_completed || '');
+      setTimeSpent(editSubmission.time_spent?.toString() || '');
+      setReflection(editSubmission.reflection || '');
+      setProofUrl(editSubmission.proof_url || '');
+      if (editSubmission.proof_url) {
+        setProofType('link');
       }
-    };
-
-    if (userId) {
-      fetchDraft();
+    } else {
+      // Clear form for new submission
+      setExistingDraftId(null);
+      setTaskCompleted('');
+      setTimeSpent('');
+      setReflection('');
+      setProofUrl('');
+      setFile(null);
     }
-  }, [userId]);
+  }, [editSubmission]);
 
   const handleSubmit = async (e: React.FormEvent, asDraft: boolean = false) => {
     e.preventDefault();
@@ -139,7 +136,7 @@ export const SubmissionForm: React.FC<SubmissionFormProps> = ({ userId, onSucces
           reflection,
         });
 
-        onSuccess(posts);
+        if (onCancelEdit) onCancelEdit();
         toast.success('Nicely done! Work submitted.');
         
         // Reset
@@ -151,17 +148,15 @@ export const SubmissionForm: React.FC<SubmissionFormProps> = ({ userId, onSucces
         setExistingDraftId(null);
       } else {
         toast.success('Draft saved successfully!');
-        // Refresh draft ID if we just inserted
-        if (!existingDraftId) {
-            const { data } = await supabase
-                .from('submissions')
-                .select('id')
-                .eq('user_id', userId)
-                .eq('submitted_date', today)
-                .eq('is_draft', true)
-                .single();
-            if (data) setExistingDraftId(data.id);
-        }
+        if (onCancelEdit) onCancelEdit(); // Close/Reset after saving draft too to allow new ones
+        
+        // Reset
+        setTaskCompleted('');
+        setTimeSpent('');
+        setReflection('');
+        setProofUrl('');
+        setFile(null);
+        setExistingDraftId(null);
       }
     } catch (err: any) {
       setError(err.message);
@@ -176,8 +171,19 @@ export const SubmissionForm: React.FC<SubmissionFormProps> = ({ userId, onSucces
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
           <CheckCircle2 className="text-emerald-500" size={24} />
-          <h2 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Daily Accountability</h2>
+          <h2 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+            {existingDraftId ? 'Edit Draft' : 'Daily Accountability'}
+          </h2>
         </div>
+        {existingDraftId && (
+          <button 
+            type="button" 
+            onClick={() => onCancelEdit?.()}
+            className={`text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-lg border ${theme === 'dark' ? 'border-white/10 text-white/40 hover:text-white' : 'border-slate-200 text-slate-400 hover:text-slate-900'}`}
+          >
+            Cancel Edit
+          </button>
+        )}
       </div>
 
       <form onSubmit={(e) => handleSubmit(e, false)} className="space-y-5">
