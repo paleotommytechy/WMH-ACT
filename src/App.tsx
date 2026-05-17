@@ -11,6 +11,7 @@ import { PublicGenerator } from './components/PublicGenerator';
 import { AdminDashboard } from './components/AdminDashboard';
 import { ProfileSetup } from './components/ProfileSetup';
 import { ProfileEditor } from './components/ProfileEditor';
+import { SettingsView } from './components/SettingsView';
 import { SubmissionDetailModal } from './components/SubmissionDetailModal';
 import { 
   Loader2, Plus, Calendar, Clock, ChevronRight, ChevronDown, TrendingUp, 
@@ -31,7 +32,7 @@ export default function App() {
   const [isSubmitCollapsed, setIsSubmitCollapsed] = useState(window.innerWidth < 768);
   const [isHistoryCollapsed, setIsHistoryCollapsed] = useState(window.innerWidth < 768);
 
-  const [activeTab, setActiveTab] = useState<'daily' | 'weekly' | 'profile' | 'notifications'>('daily');
+  const [activeTab, setActiveTab] = useState<'daily' | 'weekly' | 'profile' | 'settings'>('daily');
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
   useEffect(() => {
@@ -277,20 +278,44 @@ export default function App() {
         <ProfileEditor 
           profile={profile!} 
           onUpdate={setProfile} 
-          onBack={() => setActiveTab(profile?.community_role === 'admin' ? 'daily' : 'daily')} 
+          onBack={() => setActiveTab('daily')} 
           theme={theme}
+        />
+      ) : activeTab === 'settings' ? (
+        <SettingsView 
+          userId={session.user.id}
+          theme={theme}
+          toggleTheme={toggleTheme}
+          onBack={() => setActiveTab('daily')}
         />
       ) : (
         <div className="space-y-10">
           {profile?.community_role !== 'admin' && (
-            <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-4 md:pt-0">
-            <div>
-              <h1 className={`text-4xl font-black tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-                Welcome, <span className="text-violet-400">{profile?.full_name?.split(' ')[0] || session?.user?.email?.split('@')[0] || 'User'}</span>
-              </h1>
-              <p className={`${theme === 'dark' ? 'text-violet-200/60' : 'text-slate-500'} font-medium`}>
-                Efficiency is the only currency of mastery.
-              </p>
+            <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 pt-4 md:pt-0">
+            <div className="flex items-center gap-6">
+              {profile?.profile_image && (
+                <motion.div 
+                  initial={{ scale: 0, rotate: -180 }}
+                  animate={{ scale: 1, rotate: 0 }}
+                  whileHover={{ scale: 1.1, rotate: 5 }}
+                  className="relative group shrink-0"
+                >
+                  <div className="absolute -inset-1 bg-gradient-to-r from-violet-600 to-fuchsia-600 rounded-2xl blur opacity-25 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-pulse" />
+                  <img 
+                    src={profile.profile_image} 
+                    alt="Profile" 
+                    className={`relative w-20 h-20 rounded-2xl object-cover border-2 ${theme === 'dark' ? 'border-white/10' : 'border-white'} shadow-2xl`}
+                  />
+                </motion.div>
+              )}
+              <div>
+                <h1 className={`text-4xl font-black tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                  Welcome, <span className="text-violet-400">{profile?.full_name?.split(' ')[0] || session?.user?.email?.split('@')[0] || 'User'}</span>
+                </h1>
+                <p className={`${theme === 'dark' ? 'text-violet-200/60' : 'text-slate-500'} font-medium`}>
+                  Efficiency is the only currency of mastery.
+                </p>
+              </div>
             </div>
             {profile?.community_role === 'student' && (
               <>

@@ -1,11 +1,11 @@
 
 import React from 'react';
-import { Home, Calendar, Plus, Bell, User } from 'lucide-react';
+import { Home, Calendar, Plus, User, Settings } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface BottomNavProps {
-  activeTab: 'daily' | 'weekly' | 'profile' | 'notifications';
-  onTabChange: (tab: 'daily' | 'weekly' | 'profile' | 'notifications') => void;
+  activeTab: 'daily' | 'weekly' | 'profile' | 'settings';
+  onTabChange: (tab: 'daily' | 'weekly' | 'profile' | 'settings') => void;
   onAddClick: () => void;
   unreadNotifications?: number;
   theme: 'dark' | 'light';
@@ -58,27 +58,18 @@ export const BottomNav: React.FC<BottomNavProps> = ({
         </div>
 
         <NavButton 
-          icon={
-            <div className="relative">
-              <Bell size={24} />
-              {unreadNotifications > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 rounded-full flex items-center justify-center text-[10px] text-white font-bold animate-pulse">
-                  {unreadNotifications > 9 ? '9+' : unreadNotifications}
-                </span>
-              )}
-            </div>
-          } 
-          label="Alerts" 
-          active={activeTab === 'notifications'} 
-          onClick={() => onTabChange('notifications')}
-          isDark={isDark}
-        />
-
-        <NavButton 
           icon={<User size={24} />} 
           label="Profile" 
           active={activeTab === 'profile'} 
           onClick={() => onTabChange('profile')}
+          isDark={isDark}
+        />
+
+        <NavButton 
+          icon={<Settings size={24} />} 
+          label="Settings" 
+          active={activeTab === 'settings'} 
+          onClick={() => onTabChange('settings')}
           isDark={isDark}
         />
       </div>

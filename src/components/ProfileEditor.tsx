@@ -2,10 +2,9 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/src/lib/supabase';
 import { Profile, SkillLevel, UserRole } from '@/src/lib/types';
-import { Loader2, User, MapPin, Briefcase, GraduationCap, Target, Save, ArrowLeft, Globe, Github, Linkedin, Twitter, ExternalLink, Image as ImageIcon, Bell, Camera, Upload } from 'lucide-react';
+import { Loader2, User, MapPin, Briefcase, GraduationCap, Target, Save, ArrowLeft, Globe, Github, Linkedin, Twitter, ExternalLink, Image as ImageIcon, Camera, Upload, LogOut } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'react-hot-toast';
-import { NotificationSettings } from './NotificationSettings';
 
 interface ProfileEditorProps {
   profile: Profile;
@@ -18,7 +17,6 @@ export function ProfileEditor({ profile, onUpdate, onBack, theme = 'dark' }: Pro
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [formData, setFormData] = useState<Partial<Profile>>({ ...profile });
-  const [activeTab, setActiveTab] = useState<'profile' | 'notifications'>('profile');
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -94,8 +92,8 @@ export function ProfileEditor({ profile, onUpdate, onBack, theme = 'dark' }: Pro
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 pb-20">
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+    <div className="max-w-4xl mx-auto space-y-8 pb-32">
+      <header className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <button 
             onClick={onBack}
@@ -103,57 +101,23 @@ export function ProfileEditor({ profile, onUpdate, onBack, theme = 'dark' }: Pro
           >
             <ArrowLeft size={24} />
           </button>
-          <div>
-            <h1 className={`text-3xl font-black italic ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>IDENTITY {activeTab === 'profile' ? 'CORE' : 'REMINDERS'}</h1>
-            <p className={`${theme === 'dark' ? 'text-violet-200/60' : 'text-slate-500'} font-medium`}>Refine your mastery settings.</p>
-          </div>
+          <span className={`text-2xl font-black italic ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>PROFILE</span>
         </div>
-
-        <div className={`p-1 rounded-2xl flex border shadow-xl backdrop-blur-md ${theme === 'dark' ? 'bg-white/5 border-white/10' : 'bg-slate-100 border-slate-200'}`}>
-          <button 
-            onClick={() => setActiveTab('profile')}
-            className={`px-6 py-2 rounded-xl text-xs font-black uppercase transition-all flex items-center gap-2 ${activeTab === 'profile' ? 'bg-violet-600 text-white shadow-lg' : theme === 'dark' ? 'text-white/40 hover:text-white' : 'text-slate-500 hover:text-slate-900'}`}
-          >
-            <User size={14} /> Profile
-          </button>
-          <button 
-            onClick={() => setActiveTab('notifications')}
-            className={`px-6 py-2 rounded-xl text-xs font-black uppercase transition-all flex items-center gap-2 ${activeTab === 'notifications' ? 'bg-violet-600 text-white shadow-lg' : theme === 'dark' ? 'text-white/40 hover:text-white' : 'text-slate-500 hover:text-slate-900'}`}
-          >
-            <Bell size={14} /> Reminders
-          </button>
-        </div>
-
-        {activeTab === 'profile' && (
-          <button 
-            onClick={() => handleSubmit()}
-            disabled={loading}
-            className="bg-violet-600 hover:bg-violet-500 text-white px-6 py-3 rounded-xl font-black flex items-center gap-2 shadow-lg shadow-violet-600/20 transition-all ml-auto md:ml-0"
-          >
-            {loading ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
-            SYNC CHANGES
-          </button>
-        )}
       </header>
 
       <AnimatePresence mode="wait">
-        {activeTab === 'profile' ? (
-          <motion.form 
-            key="profile"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 20 }}
-            onSubmit={handleSubmit} 
-            className="grid grid-cols-1 md:grid-cols-2 gap-8"
-          >
+        <motion.form 
+          key="profile"
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          onSubmit={handleSubmit} 
+          className="grid grid-cols-1 md:grid-cols-2 gap-8"
+        >
             {/* Core Identity Section */}
         <div className={`space-y-6 backdrop-blur-md border p-8 rounded-3xl relative overflow-hidden transition-all ${theme === 'dark' ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200 shadow-sm'}`}>
           <div className={`absolute top-0 right-0 p-4 opacity-5 pointer-events-none ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
             <User size={100} />
           </div>
-          <h2 className={`text-sm font-black uppercase tracking-widest flex items-center gap-2 border-b pb-4 ${theme === 'dark' ? 'text-violet-400 border-white/5' : 'text-violet-600 border-slate-100'}`}>
-            <User size={16} /> Core Identity
-          </h2>
           
           <div className="space-y-4">
             <div className="space-y-2">
@@ -400,63 +364,32 @@ export function ProfileEditor({ profile, onUpdate, onBack, theme = 'dark' }: Pro
           </div>
         </div>
 
-        {/* Public Settings & Preferences */}
-        <div className={`space-y-6 backdrop-blur-md border p-8 rounded-3xl md:col-span-2 transition-all ${theme === 'dark' ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200 shadow-sm'}`}>
-          <h2 className={`text-sm font-black uppercase tracking-widest flex items-center gap-2 border-b pb-4 ${theme === 'dark' ? 'text-violet-400 border-white/5' : 'text-violet-600 border-slate-100'}`}>
-            <ExternalLink size={16} /> Privacy & Preferences
-          </h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className={`flex items-center justify-between p-4 rounded-2xl border ${theme === 'dark' ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-200'}`}>
-              <div>
-                <h4 className={`font-bold text-sm ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Public Profile</h4>
-                <p className={`text-xs ${theme === 'dark' ? 'text-white/40' : 'text-slate-400'}`}>Allow others to see your mastery profile</p>
-              </div>
-              <button 
-                type="button"
-                onClick={() => updateField('public_profile_enabled', !formData.public_profile_enabled)}
-                className={`w-12 h-6 rounded-full transition-colors relative ${formData.public_profile_enabled ? 'bg-violet-600' : 'bg-slate-200'}`}
-              >
-                <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm ${formData.public_profile_enabled ? 'left-7' : 'left-1'}`} />
-              </button>
-            </div>
-            
-            <div className={`flex items-center justify-between p-4 rounded-2xl border ${theme === 'dark' ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-200'}`}>
-              <div>
-                <h4 className={`font-bold text-sm ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Preferred Theme</h4>
-                <p className={`text-xs ${theme === 'dark' ? 'text-white/40' : 'text-slate-400'}`}>Choose your visual interface style</p>
-              </div>
-              <div className={`flex p-1 rounded-lg ${theme === 'dark' ? 'bg-white/10' : 'bg-slate-200'}`}>
-                <button
-                  type="button"
-                  onClick={() => updateField('preferred_theme', 'light')}
-                  className={`px-3 py-1 rounded-md text-[10px] font-bold uppercase transition-all ${formData.preferred_theme === 'light' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                >
-                  Light
-                </button>
-                <button
-                  type="button"
-                  onClick={() => updateField('preferred_theme', 'dark')}
-                  className={`px-3 py-1 rounded-md text-[10px] font-bold uppercase transition-all ${formData.preferred_theme === 'dark' ? 'bg-violet-600 text-white shadow-sm' : theme === 'dark' ? 'text-white/40 hover:text-white' : 'text-slate-500 hover:text-slate-700'}`}
-                >
-                  Dark
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-          </motion.form>
-        ) : (
-          <motion.div
-            key="notifications"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
+        {/* Global Actions (Save & Logout) */}
+        <div className="md:col-span-2 space-y-4 pt-8">
+          <button 
+            type="submit"
+            disabled={loading}
+            className="w-full bg-violet-600 hover:bg-violet-500 text-white py-4 rounded-2xl font-black flex items-center justify-center gap-3 shadow-xl shadow-violet-600/20 transition-all"
           >
-            <NotificationSettings userId={profile.id} theme={theme} />
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
+            {loading ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
+            SAVE
+          </button>
+
+          <button
+            type="button"
+            onClick={() => supabase.auth.signOut()}
+            className={`w-full py-4 rounded-2xl font-black flex items-center justify-center gap-3 transition-all border ${
+              theme === 'dark' 
+                ? 'bg-rose-500/10 border-rose-500/20 text-rose-500 hover:bg-rose-500 hover:text-white' 
+                : 'bg-rose-50 border-rose-100 text-rose-600 hover:bg-rose-600 hover:text-white'
+            }`}
+          >
+            <LogOut size={20} />
+            LOGOUT
+          </button>
+        </div>
+      </motion.form>
+    </AnimatePresence>
+  </div>
+);
 }

@@ -13,9 +13,9 @@ interface LayoutProps {
   hideNav?: boolean;
   theme?: 'dark' | 'light';
   toggleTheme?: () => void;
-  onTabChange?: (tab: 'daily' | 'weekly' | 'profile' | 'notifications') => void;
+  onTabChange?: (tab: 'daily' | 'weekly' | 'profile' | 'settings') => void;
   onAddClick?: () => void;
-  activeTab?: 'daily' | 'weekly' | 'profile' | 'notifications';
+  activeTab?: 'daily' | 'weekly' | 'profile' | 'settings';
 }
 
 export const Layout: React.FC<LayoutProps> = ({ 
@@ -36,11 +36,10 @@ export const Layout: React.FC<LayoutProps> = ({
     await supabase.auth.signOut();
   };
 
-  // Synchronize isNotificationsOpen with activeTab if it's 'notifications'
+  // Synchronize isNotificationsOpen with activeTab if it's 'settings' (WE NO LONGER DO THIS AUTO-OPEN)
   useEffect(() => {
-    if (activeTab === 'notifications') {
-      setIsNotificationsOpen(true);
-    }
+    // If we want notifications to be a standard tab, we could handle it here.
+    // But currently settings is its own page.
   }, [activeTab]);
 
   useEffect(() => {
@@ -82,9 +81,6 @@ export const Layout: React.FC<LayoutProps> = ({
 
   const handleCloseNotifications = () => {
     setIsNotificationsOpen(false);
-    if (activeTab === 'notifications') {
-      onTabChange?.('daily');
-    }
   };
 
   return (
