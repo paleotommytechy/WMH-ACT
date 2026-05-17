@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/src/lib/supabase';
 import { Profile, SkillLevel, UserRole } from '@/src/lib/types';
-import { Loader2, User, MapPin, Briefcase, GraduationCap, Target, Save, ArrowLeft, Globe, Github, Linkedin, Twitter, ExternalLink, Image as ImageIcon, Camera, Upload, LogOut } from 'lucide-react';
+import { Loader2, User, MapPin, Briefcase, GraduationCap, Target, Save, ArrowLeft, Globe, Github, Linkedin, Twitter, ExternalLink, Image as ImageIcon, Camera, Upload } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'react-hot-toast';
 
@@ -364,8 +364,8 @@ export function ProfileEditor({ profile, onUpdate, onBack, theme = 'dark' }: Pro
           </div>
         </div>
 
-        {/* Global Actions (Save & Logout) */}
-        <div className="md:col-span-2 space-y-4 pt-8">
+        {/* Global Actions (Save) */}
+        <div className="md:col-span-2 pt-8">
           <button 
             type="submit"
             disabled={loading}
@@ -373,19 +373,6 @@ export function ProfileEditor({ profile, onUpdate, onBack, theme = 'dark' }: Pro
           >
             {loading ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
             SAVE
-          </button>
-
-          <button
-            type="button"
-            onClick={() => supabase.auth.signOut()}
-            className={`w-full py-4 rounded-2xl font-black flex items-center justify-center gap-3 transition-all border ${
-              theme === 'dark' 
-                ? 'bg-rose-500/10 border-rose-500/20 text-rose-500 hover:bg-rose-500 hover:text-white' 
-                : 'bg-rose-50 border-rose-100 text-rose-600 hover:bg-rose-600 hover:text-white'
-            }`}
-          >
-            <LogOut size={20} />
-            LOGOUT
           </button>
         </div>
       </motion.form>

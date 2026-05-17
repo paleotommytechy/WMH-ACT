@@ -255,28 +255,23 @@ export const NotificationSettings: React.FC<NotificationSettingsProps> = ({
             icon={Trophy}
           />
         </Section>
-
-        <div className="flex flex-col justify-end">
-           <div className={cn(
-             "p-8 rounded-2xl border border-dashed text-center space-y-4",
-             theme === 'dark' ? "border-white/10 bg-white/5" : "border-slate-200 bg-slate-50"
-           )}>
-             <Settings className={cn("mx-auto opacity-20", theme === 'dark' ? "text-white" : "text-slate-900")} size={48} />
-             <div>
-               <h3 className={cn("font-bold", theme === 'dark' ? "text-white" : "text-slate-900")}>Sync Preferences</h3>
-               <p className={cn("text-xs", theme === 'dark' ? "text-white/40" : "text-slate-500")}>Changes are applied across all your active sessions.</p>
-             </div>
-             <button 
-               onClick={handleSave}
-               disabled={saving}
-               className="w-full py-4 rounded-2xl bg-indigo-600 text-white font-black uppercase text-xs shadow-xl shadow-indigo-600/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2"
-             >
-               {saving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
-               Save Accountability Config
-             </button>
-           </div>
-        </div>
       </div>
+
+      {/* Floating Save Button */}
+      <button 
+        onClick={handleSave}
+        disabled={saving}
+        className={cn(
+          "fixed bottom-24 right-6 w-14 h-14 rounded-full shadow-2xl flex items-center justify-center transition-all z-50",
+          theme === 'dark' 
+            ? "bg-violet-600 text-white shadow-violet-900/40 hover:bg-violet-500" 
+            : "bg-violet-600 text-white shadow-violet-200/50 hover:bg-violet-700",
+          saving && "animate-pulse"
+        )}
+        title="Sync Accountability Config"
+      >
+        {saving ? <Loader2 className="animate-spin" size={24} /> : <Save size={24} />}
+      </button>
     </div>
   );
 };
