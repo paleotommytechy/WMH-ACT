@@ -7,7 +7,7 @@ export const NotificationService = {
   
   async requestPushPermission(): Promise<boolean> {
     if (!('Notification' in window)) {
-      console.warn('This browser does not support desktop notifications');
+      console.warn('This browser does not support push notifications');
       return false;
     }
 
@@ -15,17 +15,39 @@ export const NotificationService = {
     return permission === 'granted';
   },
 
-  async savePushToken(userId: string, token: string, deviceInfo: any = {}) {
+  async subscribeUserToPush(userId: string) {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      throw new Error('Push notifications not supported');
+    }
+
+    const registration = await navigator.serviceWorker.ready;
+    const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+    
+    if (!vapidPublicKey) {
+      console.warn('VITE_VAPID_PUBLIC_KEY not found in environment');
+      return null;
+    }
+
+    const subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: vapidPublicKey
+    });
+
+    // Save to Supabase
     const { error } = await supabase
       .from('push_tokens')
       .upsert({
         user_id: userId,
-        token: token,
-        device_info: deviceInfo,
+        token: JSON.stringify(subscription),
+        device_info: {
+          userAgent: navigator.userAgent,
+          platform: navigator.platform
+        },
         last_used_at: new Date().toISOString()
       }, { onConflict: 'user_id, token' });
-    
+
     if (error) throw error;
+    return subscription;
   },
 
   // --- Notification Center ---

@@ -85,7 +85,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[90] lg:hidden"
           />
 
           <motion.div
@@ -93,8 +93,8 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
             animate={{ opacity: 1, y: 0, x: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, x: 20, scale: 0.95 }}
             className={cn(
-              "fixed lg:absolute top-0 right-0 lg:top-14 lg:right-0 w-full lg:w-[400px] h-full lg:h-[600px] z-50",
-              "flex flex-col overflow-hidden shadow-2xl lg:rounded-2xl border",
+              "fixed lg:absolute top-0 right-0 lg:top-14 lg:right-0 w-full lg:w-[400px] h-full lg:h-[600px] z-[100]",
+              "flex flex-col overflow-hidden shadow-2xl lg:rounded-2xl border pt-safe lg:pt-0",
               theme === 'dark' ? "bg-[#1e1b4b]/95 border-white/10 backdrop-blur-xl" : "bg-white border-slate-200"
             )}
           >

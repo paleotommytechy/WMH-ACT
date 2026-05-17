@@ -4,6 +4,7 @@ import { LogOut, User as UserIcon, Sun, Moon, Bell } from 'lucide-react';
 import { supabase } from '@/src/lib/supabase';
 import { NotificationCenter } from './NotificationCenter';
 import { NotificationService } from '@/src/lib/notifications';
+import { BottomNav } from './BottomNav';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -12,16 +13,35 @@ interface LayoutProps {
   hideNav?: boolean;
   theme?: 'dark' | 'light';
   toggleTheme?: () => void;
-  onTabChange?: (tab: 'daily' | 'weekly' | 'profile') => void;
+  onTabChange?: (tab: 'daily' | 'weekly' | 'profile' | 'notifications') => void;
+  onAddClick?: () => void;
+  activeTab?: 'daily' | 'weekly' | 'profile' | 'notifications';
 }
 
-export const Layout: React.FC<LayoutProps> = ({ children, user, profile, hideNav, onTabChange, theme, toggleTheme }) => {
+export const Layout: React.FC<LayoutProps> = ({ 
+  children, 
+  user, 
+  profile, 
+  hideNav, 
+  onTabChange, 
+  onAddClick,
+  activeTab = 'daily',
+  theme, 
+  toggleTheme 
+}) => {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
   };
+
+  // Synchronize isNotificationsOpen with activeTab if it's 'notifications'
+  useEffect(() => {
+    if (activeTab === 'notifications') {
+      setIsNotificationsOpen(true);
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     if (user) {
@@ -60,8 +80,15 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, profile, hideNav
     }
   }, [user]);
 
+  const handleCloseNotifications = () => {
+    setIsNotificationsOpen(false);
+    if (activeTab === 'notifications') {
+      onTabChange?.('daily');
+    }
+  };
+
   return (
-    <div className={`min-h-screen font-sans flex flex-col transition-colors duration-300 ${theme === 'dark' ? 'bg-[#130722] text-white' : 'bg-slate-50 text-slate-900'}`}>
+    <div className={`min-h-screen-ios font-sans flex flex-col transition-colors duration-300 ${theme === 'dark' ? 'bg-[#130722] text-white' : 'bg-slate-50 text-slate-900'}`}>
       {!hideNav && (
         <nav className={`${theme === 'dark' ? 'bg-[#130722]/80 border-violet-900/50' : 'bg-[#130722]/95 border-violet-900/30'} backdrop-blur-md border-b sticky top-0 z-50`}>
           <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
@@ -85,85 +112,90 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, profile, hideNav
 
             {user && (
               <div className="flex items-center gap-4">
-                <div className="relative">
-                  <button
-                    onClick={() => {
-                      setIsNotificationsOpen(!isNotificationsOpen);
-                      if (isNotificationsOpen) setUnreadCount(0); // Optimistic clear
-                    }}
-                    className={`p-2 rounded-full transition-colors relative ${theme === 'dark' ? 'text-neutral-400 hover:text-white hover:bg-white/10' : 'text-slate-400 hover:text-slate-900 hover:bg-slate-100'}`}
-                    title="Notifications"
-                  >
-                    <Bell size={20} />
-                    {unreadCount > 0 && (
-                      <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-rose-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-[#130722]">
-                        {unreadCount > 9 ? '9+' : unreadCount}
-                      </span>
-                    )}
-                  </button>
-                  <NotificationCenter 
-                    userId={user.id} 
-                    theme={theme!} 
-                    isOpen={isNotificationsOpen} 
-                    onClose={() => setIsNotificationsOpen(false)} 
-                  />
-                </div>
+                <button
+                  onClick={() => {
+                    setIsNotificationsOpen(!isNotificationsOpen);
+                    if (isNotificationsOpen) setUnreadCount(0); // Optimistic clear
+                  }}
+                  className={`p-2 rounded-full transition-colors relative ${theme === 'dark' ? 'text-neutral-400 hover:text-white hover:bg-white/10' : 'text-slate-400 hover:text-slate-900 hover:bg-slate-100'}`}
+                  title="Notifications"
+                >
+                  <Bell size={20} />
+                  {unreadCount > 0 && (
+                    <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-rose-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-[#130722]">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+                </button>
 
                 <button
                   onClick={toggleTheme}
-                  className={`p-2 rounded-full transition-colors ${theme === 'dark' ? 'text-neutral-400 hover:text-white hover:bg-white/10' : 'text-violet-300 hover:text-white hover:bg-white/10'}`}
+                  className={`p-2 rounded-full transition-colors ${theme === 'dark' ? 'text-neutral-400 hover:text-white hover:bg-white/10' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'}`}
                   title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
                 >
                   {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
                 </button>
-                <button 
-                  onClick={() => onTabChange?.('profile')}
-                  className={`hidden md:flex items-center gap-2 pr-3 pl-1.5 py-1 rounded-full border transition-colors ${theme === 'dark' ? 'bg-violet-900/30 border-violet-700/50 hover:bg-violet-800/40 text-violet-200' : 'bg-violet-900/20 border-violet-700/30 hover:bg-violet-900/40 text-violet-200'}`}
-                >
-                  {profile?.profile_image ? (
-                    <img src={profile.profile_image} alt={profile.full_name || 'Profile'} className="w-6 h-6 rounded-full object-cover border border-violet-500/50" />
-                  ) : (
-                    <UserIcon size={14} className={theme === 'dark' ? 'text-violet-400' : 'text-violet-400'} />
-                  )}
-                  <span className="text-xs font-medium">
-                    {profile?.full_name || user.email}
-                  </span>
-                  <span className="text-[10px] px-1.5 py-0.5 bg-violet-600 text-white rounded-md uppercase font-bold tracking-wider">
-                    {profile?.community_role || 'student'}
-                  </span>
-                </button>
-                <button
-                  onClick={() => onTabChange?.('profile')}
-                  className="md:hidden w-10 h-10 rounded-full flex items-center justify-center overflow-hidden border border-violet-500/30"
-                >
-                  {profile?.profile_image ? (
-                    <img src={profile.profile_image} alt="Profile" className="w-full h-full object-cover" />
-                  ) : (
-                    <UserIcon size={20} className="text-neutral-400" />
-                  )}
-                </button>
-                <button
-                  onClick={handleLogout}
-                  className="p-2 text-neutral-400 hover:text-red-500 hover:bg-red-900/40 rounded-full transition-colors"
-                  title="Logout"
-                >
-                  <LogOut size={20} />
-                </button>
+                
+                {/* Desktop-only Profile & Logout */}
+                <div className="hidden md:flex items-center gap-4">
+                  <button 
+                    onClick={() => onTabChange?.('profile')}
+                    className={`flex items-center gap-2 pr-3 pl-1.5 py-1 rounded-full border transition-colors ${theme === 'dark' ? 'bg-violet-900/30 border-violet-700/50 hover:bg-violet-800/40 text-violet-200' : 'bg-slate-100 border-slate-200 hover:bg-slate-200 text-slate-800'}`}
+                  >
+                    {profile?.profile_image ? (
+                      <img src={profile.profile_image} alt={profile.full_name || 'Profile'} className="w-6 h-6 rounded-full object-cover border border-violet-500/50" />
+                    ) : (
+                      <UserIcon size={14} className={theme === 'dark' ? 'text-violet-400' : 'text-slate-500'} />
+                    )}
+                    <span className="text-xs font-medium">
+                      {profile?.full_name || user.email}
+                    </span>
+                    <span className="text-[10px] px-1.5 py-0.5 bg-violet-600 text-white rounded-md uppercase font-bold tracking-wider">
+                      {profile?.community_role || 'student'}
+                    </span>
+                  </button>
+                  <button
+                    onClick={handleLogout}
+                    className="p-2 text-neutral-400 hover:text-red-500 hover:bg-red-900/40 rounded-full transition-colors"
+                    title="Logout"
+                  >
+                    <LogOut size={20} />
+                  </button>
+                </div>
               </div>
             )}
           </div>
         </nav>
       )}
 
-      <main className={`max-w-5xl mx-auto px-4 w-full ${hideNav ? 'flex-1 flex flex-col justify-center py-12' : 'py-8 md:py-12'}`}>
+      <main className={`max-w-5xl mx-auto px-4 w-full ${hideNav ? 'flex-1 flex flex-col justify-center py-12' : 'py-8 md:py-12 pb-24 md:pb-12'}`}>
         {children}
       </main>
 
-      <footer className={`max-w-5xl mx-auto px-4 py-8 border-t mt-auto ${theme === 'dark' ? 'border-violet-900/30' : 'border-slate-200'}`}>
+      {!hideNav && user && (
+        <BottomNav 
+          activeTab={activeTab}
+          onTabChange={onTabChange as any}
+          onAddClick={onAddClick || (() => {})}
+          unreadNotifications={unreadCount}
+          theme={theme!}
+        />
+      )}
+
+      <footer className={`max-w-5xl mx-auto px-4 py-8 border-t mt-auto hidden md:block ${theme === 'dark' ? 'border-violet-900/30' : 'border-slate-200'}`}>
         <p className={`text-center text-xs mt-8 ${theme === 'dark' ? 'text-violet-400/60' : 'text-slate-400'}`}>
           &copy; {new Date().getFullYear()} Wilson Mastery Hub. Efficiency through proof.
         </p>
       </footer>
+
+      {user && (
+        <NotificationCenter 
+          userId={user.id} 
+          theme={theme!} 
+          isOpen={isNotificationsOpen} 
+          onClose={handleCloseNotifications} 
+        />
+      )}
     </div>
   );
 };

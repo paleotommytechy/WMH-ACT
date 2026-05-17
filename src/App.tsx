@@ -31,7 +31,7 @@ export default function App() {
   const [isSubmitCollapsed, setIsSubmitCollapsed] = useState(window.innerWidth < 768);
   const [isHistoryCollapsed, setIsHistoryCollapsed] = useState(window.innerWidth < 768);
 
-  const [activeTab, setActiveTab] = useState<'daily' | 'weekly' | 'profile'>('daily');
+  const [activeTab, setActiveTab] = useState<'daily' | 'weekly' | 'profile' | 'notifications'>('daily');
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
   useEffect(() => {
@@ -256,6 +256,12 @@ export default function App() {
       user={session.user} 
       profile={profile} 
       onTabChange={setActiveTab}
+      activeTab={activeTab}
+      onAddClick={() => {
+        setActiveTab('daily');
+        setIsSubmitCollapsed(false);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }}
       theme={theme}
       toggleTheme={toggleTheme}
     >
@@ -277,9 +283,9 @@ export default function App() {
       ) : (
         <div className="space-y-10">
           {profile?.community_role !== 'admin' && (
-            <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-4 md:pt-0">
             <div>
-              <h1 className={`text-3xl font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+              <h1 className={`text-4xl font-black tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
                 Welcome, <span className="text-violet-400">{profile?.full_name?.split(' ')[0] || session?.user?.email?.split('@')[0] || 'User'}</span>
               </h1>
               <p className={`${theme === 'dark' ? 'text-violet-200/60' : 'text-slate-500'} font-medium`}>

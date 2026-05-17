@@ -27,3 +27,14 @@
   background-color: #f8fafc;
   color: #0f172a;
 }
+
+/* iOS Safe Areas */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+.min-h-screen-ios {
+  min-height: -webkit-fill-available;
+}

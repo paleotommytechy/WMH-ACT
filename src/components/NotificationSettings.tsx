@@ -63,8 +63,14 @@ export const NotificationSettings: React.FC<NotificationSettingsProps> = ({
     if (!prefs.push_enabled) {
       const granted = await NotificationService.requestPushPermission();
       if (granted) {
-        setPrefs({ ...prefs, push_enabled: true });
-        toast.success('Push notifications enabled!');
+        try {
+          await NotificationService.subscribeUserToPush(userId);
+          setPrefs({ ...prefs, push_enabled: true });
+          toast.success('Push notifications active!');
+        } catch (err) {
+          console.error('Push subscription failed:', err);
+          toast.error('Could not activate push notifications. Ensure VAPID keys are configured.');
+        }
       } else {
         toast.error('Permission denied. Please enable notifications in your browser settings.');
       }
