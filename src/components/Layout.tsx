@@ -13,9 +13,9 @@ interface LayoutProps {
   hideNav?: boolean;
   theme?: 'dark' | 'light';
   toggleTheme?: () => void;
-  onTabChange?: (tab: 'daily' | 'weekly' | 'profile' | 'settings') => void;
+  onTabChange?: (tab: string) => void;
   onAddClick?: () => void;
-  activeTab?: 'daily' | 'weekly' | 'profile' | 'settings';
+  activeTab?: string;
 }
 
 export const Layout: React.FC<LayoutProps> = ({ 
@@ -175,6 +175,7 @@ export const Layout: React.FC<LayoutProps> = ({
           onAddClick={onAddClick || (() => {})}
           unreadNotifications={unreadCount}
           theme={theme!}
+          role={profile?.community_role || 'student'}
         />
       )}
 

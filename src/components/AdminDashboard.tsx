@@ -16,6 +16,8 @@ import { toast } from 'react-hot-toast';
 
 interface AdminDashboardProps {
   theme?: 'dark' | 'light';
+  activeView?: AdminView;
+  onViewChange?: (view: AdminView) => void;
 }
 
 type AdminView = 'overview' | 'students' | 'submissions' | 'moderation' | 'invite' | 'broadcast';
@@ -321,8 +323,19 @@ const InviteForm: React.FC<{ theme: 'dark' | 'light' }> = ({ theme }) => {
   );
 };
 
-export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark' }) => {
-  const [activeView, setActiveView] = useState<AdminView>('overview');
+export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark', activeView: propActiveView, onViewChange }) => {
+  const [activeView, setActiveView] = useState<AdminView>(propActiveView || 'overview');
+
+  useEffect(() => {
+    if (propActiveView && propActiveView !== activeView) {
+      setActiveView(propActiveView);
+    }
+  }, [propActiveView]);
+
+  const handleViewChange = (view: AdminView) => {
+    setActiveView(view);
+    onViewChange?.(view);
+  };
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState<Profile[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
@@ -541,18 +554,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark' }
 
   return (
     <div className="flex flex-col lg:flex-row gap-8 min-h-screen pb-20 relative">
-      {/* Mobile Header with Burger */}
+      {/* Mobile Header (Hidden Sidebar Burger) */}
       <div className="lg:hidden flex items-center justify-between mb-4 sticky top-0 z-40 bg-inherit pt-4">
         <h2 className={`text-xl font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Admin Panel</h2>
-        <button 
-          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          className={`p-3 rounded-xl border ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'}`}
-        >
-          {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
-        </button>
       </div>
 
-      {/* Mobile Sidebar Overlay */}
+      {/* Mobile Sidebar Overlay (Disabled) */}
       <AnimatePresence>
         {isSidebarOpen && (
           <motion.div
@@ -565,10 +572,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark' }
         )}
       </AnimatePresence>
 
-      {/* Sidebar Navigation */}
+      {/* Sidebar Navigation (Desktop Only on Mobile it's hidden) */}
       <aside className={`
         fixed inset-y-0 left-0 z-50 w-72 transform transition-transform duration-300 lg:relative lg:translate-x-0 lg:w-64 space-y-2 p-6 lg:p-0
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+        hidden lg:block
         ${theme === 'dark' ? 'bg-[#0f0c14] lg:bg-transparent' : 'bg-white lg:bg-transparent'}
       `}>
         <div className="flex items-center justify-between lg:hidden mb-10">
@@ -597,7 +605,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark' }
           <button
             key={item.id}
             onClick={() => {
-              setActiveView(item.id as AdminView);
+              handleViewChange(item.id as AdminView);
               setIsSidebarOpen(false);
             }}
             className={`w-full flex items-center gap-3 px-4 py-4 rounded-2xl font-black transition-all ${
@@ -766,7 +774,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark' }
                       Platform integrity is currently high. {insights.needsAttention} submissions are awaiting your validation.
                     </p>
                     <button 
-                      onClick={() => setActiveView('submissions')}
+                      onClick={() => handleViewChange('submissions')}
                       className={`w-full py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${theme === 'dark' ? 'bg-violet-600 hover:bg-violet-700 text-white' : 'bg-white text-violet-600 hover:shadow-lg'}`}
                     >
                       Go to Review Hub

@@ -32,7 +32,7 @@ export default function App() {
   const [isSubmitCollapsed, setIsSubmitCollapsed] = useState(window.innerWidth < 768);
   const [isHistoryCollapsed, setIsHistoryCollapsed] = useState(window.innerWidth < 768);
 
-  const [activeTab, setActiveTab] = useState<'daily' | 'weekly' | 'profile' | 'settings'>('daily');
+  const [activeTab, setActiveTab] = useState<string>('daily');
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
   useEffect(() => {
@@ -353,7 +353,11 @@ export default function App() {
         )}
 
         {profile?.community_role === 'admin' ? (
-          <AdminDashboard theme={theme} />
+          <AdminDashboard 
+            theme={theme} 
+            activeView={activeTab as any} 
+            onViewChange={(view) => setActiveTab(view)} 
+          />
         ) : activeTab === 'weekly' ? (
           <WeeklyReviewSystem 
             userId={session.user.id} 
