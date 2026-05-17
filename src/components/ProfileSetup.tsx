@@ -25,6 +25,7 @@ export function ProfileSetup({ userId, email, onComplete, theme = 'dark' }: Prof
     country: '',
     city: '',
     goals: '',
+    learning_focus: '',
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -36,6 +37,7 @@ export function ProfileSetup({ userId, email, onComplete, theme = 'dark' }: Prof
         .from('profiles')
         .update({
           ...formData,
+          primary_track: formData.role_title, // Map role_title to primary_track for consistency if needed
           onboarding_completed: true,
           updated_at: new Date().toISOString(),
         })

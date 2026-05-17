@@ -45,24 +45,26 @@ export function ProfileEditor({ profile, onUpdate, onBack, theme = 'dark' }: Pro
 
       if (uploadError) throw uploadError;
 
-      // Get public URL
+      // Get public URL with cache buster
       const { data: { publicUrl } } = supabase.storage
         .from('avatars')
         .getPublicUrl(filePath);
+      
+      const publicUrlWithBuster = `${publicUrl}?t=${Date.now()}`;
 
       // Update local state and form
-      updateField('profile_image', publicUrl);
+      updateField('profile_image', publicUrlWithBuster);
 
       // Update database immediately to ensure UI consistency
       const { error: patchError } = await supabase
         .from('profiles')
-        .update({ profile_image: publicUrl, updated_at: new Date().toISOString() })
+        .update({ profile_image: publicUrlWithBuster, updated_at: new Date().toISOString() })
         .eq('id', profile.id);
       
       if (patchError) throw patchError;
 
-      // Update parent state immediately
-      onUpdate({ ...profile, profile_image: publicUrl });
+      // Update parent state immediately with latest form data
+      onUpdate({ ...profile, ...formData, profile_image: publicUrlWithBuster } as Profile);
 
       toast.success('Identity visual updated!');
     } catch (err: any) {

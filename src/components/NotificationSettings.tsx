@@ -164,23 +164,22 @@ export const NotificationSettings: React.FC<NotificationSettingsProps> = ({
             theme={theme}
           />
           {prefs?.whatsapp_enabled && (
-             <motion.div 
-               initial={{ height: 0, opacity: 0 }}
-               animate={{ height: 'auto', opacity: 1 }}
-               className="mt-4"
-             >
+             <div className="mt-4">
                <input 
                  type="tel"
                  placeholder="+234..."
                  value={prefs.whatsapp_number || ''}
-                 onChange={(e) => setPrefs({ ...prefs, whatsapp_number: e.target.value })}
+                 onChange={(e) => {
+                   const val = e.target.value;
+                   setPrefs(prev => prev ? { ...prev, whatsapp_number: val } : null);
+                 }}
                  className={cn(
                    "w-full p-4 rounded-xl border font-bold text-sm transition-all focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none",
                    theme === 'dark' ? "bg-white/5 border-white/10 text-white placeholder:text-white/20" : "bg-slate-50 border-slate-200 text-slate-900"
                  )}
                />
                <p className={cn("text-[10px] font-bold uppercase text-violet-400 mt-2 tracking-widest pl-1")}>Verified WhatsApp ID Needed</p>
-             </motion.div>
+             </div>
           )}
         </Section>
 
