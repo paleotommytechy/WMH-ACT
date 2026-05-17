@@ -14,6 +14,78 @@ import { format, isToday, isYesterday } from 'date-fns';
 import { Profile, Submission, Announcement } from '@/src/lib/types';
 import { toast } from 'react-hot-toast';
 
+const StudentMobileCard: React.FC<{ u: Profile, theme: 'dark' | 'light', getStatusColor: (s: string) => string }> = ({ u, theme, getStatusColor }) => {
+  return (
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={`p-5 rounded-[2rem] border backdrop-blur-xl transition-all relative overflow-hidden ${theme === 'dark' ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200 shadow-sm'}`}
+    >
+      <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
+        <Users size={80} />
+      </div>
+      
+      <div className="flex items-start justify-between mb-6">
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black text-xl ${theme === 'dark' ? 'bg-violet-500/20 text-violet-400 border border-violet-500/30' : 'bg-violet-100 text-violet-600 border border-violet-200 shadow-inner'}`}>
+              {u.profile_image ? (
+                <img src={u.profile_image} alt={u.full_name || ''} className="w-full h-full object-cover rounded-2xl" />
+              ) : (
+                u.full_name?.[0] || '?'
+              )}
+            </div>
+            <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 ${theme === 'dark' ? 'border-[#130722]' : 'border-white'} ${u.account_status === 'active' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+          </div>
+          <div>
+            <h4 className={`font-black tracking-tight text-lg leading-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{u.full_name}</h4>
+            <p className={`text-[10px] font-bold uppercase tracking-widest ${theme === 'dark' ? 'text-violet-400/50' : 'text-violet-600/50'}`}>@{u.username || 'unknown'}</p>
+          </div>
+        </div>
+        <button className={`p-2 rounded-xl ${theme === 'dark' ? 'bg-white/5 text-white/40' : 'bg-slate-50 text-slate-400'}`}>
+          <ChevronRight size={18} />
+        </button>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        <div className={`p-4 rounded-2xl border ${theme === 'dark' ? 'bg-white/5 border-white/5' : 'bg-slate-50 border-slate-100'}`}>
+          <div className="flex items-center gap-2 mb-1 opacity-40">
+            <TrendingUp size={12} />
+            <span className="text-[10px] font-black uppercase tracking-tighter">Streak</span>
+          </div>
+          <div className={`text-xl font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{u.current_streak}d</div>
+        </div>
+        <div className={`p-4 rounded-2xl border ${theme === 'dark' ? 'bg-white/5 border-white/5' : 'bg-slate-50 border-slate-100'}`}>
+          <div className="flex items-center gap-2 mb-1 opacity-40">
+            <Target size={12} />
+            <span className="text-[10px] font-black uppercase tracking-tighter">Consistency</span>
+          </div>
+          <div className={`text-xl font-black ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'}`}>{u.weekly_consistency_score}%</div>
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Mail size={12} className="text-violet-400" />
+            <span className={`text-[10px] font-medium max-w-[140px] truncate ${theme === 'dark' ? 'text-white/40' : 'text-slate-500'}`}>{u.email}</span>
+          </div>
+          <div className={`text-[10px] font-black uppercase px-2 py-1 rounded-md border ${getStatusColor(u.account_status)}`}>
+            {u.account_status}
+          </div>
+        </div>
+        
+        <div className="w-full h-1.5 bg-black/10 rounded-full overflow-hidden">
+          <div 
+            className="h-full bg-gradient-to-r from-violet-500 to-fuchsia-500" 
+            style={{ width: `${u.weekly_consistency_score}%` }} 
+          />
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
 interface AdminDashboardProps {
   theme?: 'dark' | 'light';
   activeView?: AdminView;
@@ -824,7 +896,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark', 
                 </div>
               </div>
 
-              <div className={`backdrop-blur-md rounded-3xl border shadow-xl overflow-hidden ${theme === 'dark' ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200'}`}>
+              <div className="grid grid-cols-1 md:hidden gap-4">
+                {filteredUsers.map((u) => (
+                  <StudentMobileCard key={u.id} u={u} theme={theme} getStatusColor={getStatusColor} />
+                ))}
+              </div>
+
+              <div className={`hidden md:block backdrop-blur-md rounded-3xl border shadow-xl overflow-hidden ${theme === 'dark' ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200'}`}>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left">
                     <thead>
