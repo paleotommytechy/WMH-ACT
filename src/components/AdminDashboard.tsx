@@ -7,7 +7,7 @@ import {
   BarChart3, LayoutDashboard, UserCheck, ShieldAlert, 
   Bell, FileText, ChevronRight, MoreVertical, Star,
   Trash2, X, Send, Copy, RefreshCw, Lock, User, Mail,
-  BrainCircuit, Zap, Target, Menu, Maximize2
+  BrainCircuit, Zap, Target, Menu, Maximize2, LogOut
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format, isToday, isYesterday } from 'date-fns';
@@ -629,6 +629,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark', 
       {/* Mobile Header (Hidden Sidebar Burger) */}
       <div className="lg:hidden flex items-center justify-between mb-4 sticky top-0 z-40 bg-inherit pt-4">
         <h2 className={`text-xl font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Admin Panel</h2>
+        <button
+          onClick={() => supabase.auth.signOut()}
+          className={`p-2 rounded-xl border transition-all ${
+            theme === 'dark' 
+              ? 'bg-rose-500/10 border-rose-500/20 text-rose-500' 
+              : 'bg-rose-50 border-rose-100 text-rose-600 shadow-sm'
+          }`}
+          title="Logout"
+        >
+          <LogOut size={20} />
+        </button>
       </div>
 
       {/* Mobile Sidebar Overlay (Disabled) */}
