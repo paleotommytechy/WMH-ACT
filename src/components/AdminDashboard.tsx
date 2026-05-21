@@ -13,6 +13,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { format, isToday, isYesterday } from 'date-fns';
 import { Profile, Submission, Announcement } from '@/src/lib/types';
 import { toast } from 'react-hot-toast';
+import Markdown from 'react-markdown';
 
 const StudentMobileCard: React.FC<{ u: Profile, theme: 'dark' | 'light', getStatusColor: (s: string) => string }> = ({ u, theme, getStatusColor }) => {
   return (
@@ -561,7 +562,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark', 
       await supabase.from('notifications').insert({
         user_id: selectedSubmission.user_id,
         title: reviewForm.status === 'excellent' ? '🌟 Superior Achievement!' : '✅ Submission Verified',
-        message: `Your submission "${selectedSubmission.task_completed}" has been reviewed. Status: ${reviewForm.status.toUpperCase()}.`,
+        message: reviewForm.notes 
+          ? `Your submission "${selectedSubmission.task_completed}" has been reviewed. Status: ${reviewForm.status.toUpperCase()}.\n\nFeedback:\n${reviewForm.notes}`
+          : `Your submission "${selectedSubmission.task_completed}" has been reviewed. Status: ${reviewForm.status.toUpperCase()}.`,
         type: reviewForm.status === 'excellent' ? 'achievement' : 'reminder',
         priority: reviewForm.status === 'flagged' ? 'high' : 'normal',
         created_at: new Date().toISOString()
@@ -1035,10 +1038,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark', 
                               By <span className="text-violet-400 font-bold">{student?.full_name || student?.username || 'Anonymous Student'}</span> • {format(new Date(sub.submitted_date), 'MMM d, HH:mm')}
                             </p>
                             {sub.review?.admin_notes && (
-                              <p className={`text-xs mt-2 p-2 rounded-lg italic border ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white/50' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>
-                                <MessageSquare size={12} className="inline mr-1" />
-                                "{sub.review.admin_notes}"
-                              </p>
+                              <div className={`text-xs mt-2 p-2 rounded-lg italic border whitespace-pre-wrap break-words markdown-body ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white/50' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>
+                                <div className="flex gap-1.5 items-start">
+                                  <MessageSquare size={12} className="mt-0.5 shrink-0" />
+                                  <div className="flex-1">
+                                    <Markdown>{sub.review.admin_notes}</Markdown>
+                                  </div>
+                                </div>
+                              </div>
                             )}
                             {sub.review?.admin?.full_name && (
                               <p className="text-[10px] mt-1 text-violet-400 font-bold uppercase tracking-widest">
@@ -1267,6 +1274,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark', 
                         placeholder="Add constructive feedback or recognition..."
                         className={`w-full px-6 py-4 rounded-2xl border outline-none font-medium resize-none ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white focus:border-violet-500' : 'bg-slate-50 border-slate-200'}`}
                       />
+                       <p className={`text-[10px] mt-2 font-semibold leading-relaxed ${theme === 'dark' ? 'text-violet-400/60' : 'text-violet-600/70'}`}>
+                         <strong>Guideline:</strong> User should be able to click on notification to see full context and immediately they enter the app they should be a pop up telling them to check their notification for information, the pop up should always exist unless they clear their notification.
+                       </p>
                    </div>
 
                    <div className="grid grid-cols-3 gap-3">

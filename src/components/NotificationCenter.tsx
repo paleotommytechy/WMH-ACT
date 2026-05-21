@@ -3,12 +3,13 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Bell, Check, Trash2, AlertCircle, Info, Trophy, 
-  MessageSquare, Zap, Clock, Calendar, Shield, X
+  MessageSquare, Zap, Clock, Calendar, Shield, X, ExternalLink
 } from 'lucide-react';
 import { AppNotification } from '@/src/lib/types';
 import { NotificationService } from '@/src/lib/notifications';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/src/lib/utils';
+import Markdown from 'react-markdown';
 
 interface NotificationCenterProps {
   userId: string;
@@ -23,6 +24,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
+  const [selectedNotification, setSelectedNotification] = useState<AppNotification | null>(null);
 
   const fetchNotifications = async () => {
     try {
@@ -51,6 +53,13 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
     }
   };
 
+  const handleNotificationClick = async (n: AppNotification) => {
+    setSelectedNotification(n);
+    if (!n.is_read) {
+      await handleMarkAsRead(n.id);
+    }
+  };
+
   const handleMarkAllAsRead = async () => {
     try {
       await NotificationService.markAllAsRead(userId);
@@ -59,6 +68,21 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
       console.error('Error marking all as read:', err);
     }
   };
+
+  // Escape key closure for selected notification modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setSelectedNotification(null);
+      }
+    };
+    if (selectedNotification) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [selectedNotification]);
 
   const getIcon = (type: string, priority: string) => {
     switch (type) {
@@ -177,8 +201,9 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
                       key={n.id}
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
+                      onClick={() => handleNotificationClick(n)}
                       className={cn(
-                        "p-6 flex gap-4 transition-all hover:bg-violet-600/5 group relative",
+                        "p-6 flex gap-4 transition-all hover:bg-violet-600/5 group relative cursor-pointer",
                         !n.is_read && (theme === 'dark' ? "bg-violet-600/10" : "bg-violet-50/50")
                       )}
                     >
@@ -201,7 +226,10 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
                         <p className={cn("text-sm line-clamp-2", theme === 'dark' ? "text-white/60" : "text-slate-500")}>{n.message}</p>
                         {!n.is_read && (
                           <button 
-                            onClick={() => handleMarkAsRead(n.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleMarkAsRead(n.id);
+                            }}
                             className="text-[10px] font-black uppercase text-violet-400 mt-2 flex items-center gap-1 group-hover:translate-x-1 transition-transform"
                           >
                             Mark Read <Check size={10} />
@@ -227,6 +255,172 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
               </button>
             </div>
           </motion.div>
+
+          {/* Full Context Notification Modal */}
+          <AnimatePresence>
+            {selectedNotification && (
+              <div 
+                className="fixed inset-0 z-[120] flex items-center justify-center p-4 cursor-pointer"
+                onClick={() => setSelectedNotification(null)}
+              >
+                {/* Backdrop */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="absolute inset-0 bg-black/80 backdrop-blur-md pointer-events-none"
+                />
+
+                {/* Modal Card */}
+                <motion.div
+                  initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                  animate={{ scale: 1, opacity: 1, y: 0 }}
+                  exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                  onClick={(e) => e.stopPropagation()}
+                  className={cn(
+                    "relative w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden border cursor-default flex flex-col max-h-[90vh] md:max-h-[85vh]",
+                    theme === 'dark' ? "bg-[#1a1625] border-white/10 text-white" : "bg-white border-slate-200 text-slate-900"
+                  )}
+                >
+                  {/* Fixed Header */}
+                  <div className={cn(
+                    "p-6 md:p-8 pb-4 flex justify-between items-start gap-4 border-b shrink-0 select-none",
+                    theme === 'dark' ? "border-white/5" : "border-slate-100"
+                  )}>
+                    <div className="flex items-center gap-3">
+                      <div className={cn(
+                        "w-10 h-10 rounded-xl flex items-center justify-center shrink-0",
+                        theme === 'dark' ? "bg-white/5" : "bg-slate-100"
+                      )}>
+                        {getIcon(selectedNotification.type, selectedNotification.priority)}
+                      </div>
+                      <div>
+                        <span className={cn("text-[10px] font-black uppercase tracking-widest block opacity-60")}>
+                          {selectedNotification.type} • {selectedNotification.priority} priority
+                        </span>
+                        <h3 className={cn("text-xl font-black leading-tight", theme === 'dark' ? "text-white" : "text-slate-900")}>
+                          {selectedNotification.title}
+                        </h3>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => setSelectedNotification(null)} 
+                      className={cn("p-2 rounded-xl transition-colors shrink-0 cursor-pointer", theme === 'dark' ? "hover:bg-white/10 text-white/30 hover:text-white" : "hover:bg-slate-150 text-slate-400 hover:text-slate-900")}
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
+
+                  {/* Scrollable Contents */}
+                  <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-6">
+                    {(() => {
+                      const message = selectedNotification.message;
+                      const feedbackMarker = "Feedback:";
+                      const index = message.indexOf(feedbackMarker);
+                      
+                      if (index !== -1) {
+                        const introText = message.substring(0, index).trim();
+                        const feedbackText = message.substring(index + feedbackMarker.length).trim();
+                        return (
+                          <div className="space-y-4">
+                            {introText && (
+                              <div className={cn(
+                                "p-4 rounded-xl text-xs opacity-80 leading-relaxed font-semibold",
+                                theme === 'dark' ? "text-violet-200/80" : "text-slate-600"
+                              )}>
+                                {introText}
+                              </div>
+                            )}
+                            <div className={cn(
+                              "p-6 rounded-2xl border relative overflow-hidden space-y-2",
+                              theme === 'dark' ? "bg-violet-500/10 border-violet-500/30 text-white" : "bg-violet-50/50 border-violet-200 text-slate-900"
+                            )}>
+                              <div className="flex items-center gap-2 text-violet-400">
+                                <MessageSquare size={16} />
+                                <span className="text-[10px] font-black uppercase tracking-widest">Instructor Feedback</span>
+                              </div>
+                              <div className={cn(
+                                "text-sm font-semibold leading-relaxed break-words whitespace-pre-wrap markdown-body",
+                                theme === 'dark' ? "text-violet-100/95" : "text-violet-950"
+                              )}>
+                                <Markdown>{feedbackText}</Markdown>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }
+                      
+                      const isReviewRelated = selectedNotification.title.toLowerCase().includes('submission') || 
+                                             selectedNotification.message.toLowerCase().includes('reviewed') ||
+                                             selectedNotification.title.toLowerCase().includes('achievement');
+                      
+                      if (isReviewRelated) {
+                        return (
+                          <div className={cn(
+                            "p-6 rounded-2xl border relative overflow-hidden space-y-2",
+                            theme === 'dark' ? "bg-violet-500/10 border-violet-500/30 text-white" : "bg-violet-50/50 border-violet-200 text-slate-900"
+                          )}>
+                            <div className="flex items-center gap-2 text-violet-400">
+                              <MessageSquare size={16} />
+                              <span className="text-[10px] font-black uppercase tracking-widest">Instructor Feedback</span>
+                            </div>
+                            <div className={cn(
+                              "text-sm font-semibold leading-relaxed break-words whitespace-pre-wrap markdown-body",
+                              theme === 'dark' ? "text-violet-100/95" : "text-violet-950"
+                            )}>
+                              <Markdown>{message}</Markdown>
+                            </div>
+                          </div>
+                        );
+                      }
+                      
+                      return (
+                        <div className={cn(
+                          "p-6 rounded-2xl border text-sm leading-relaxed overflow-y-auto max-h-[300px] whitespace-pre-wrap break-words",
+                          theme === 'dark' ? "bg-white/5 border-white/5 text-slate-300" : "bg-slate-50 border-slate-100 text-slate-700"
+                        )}>
+                          <Markdown>{message}</Markdown>
+                        </div>
+                      );
+                    })()}
+
+                    <div className={`flex items-center gap-2 text-xs opacity-60`}>
+                      <Calendar size={14} className="text-violet-400" />
+                      <span>Received on {formatDistanceToNow(new Date(selectedNotification.created_at), { addSuffix: true })}</span>
+                    </div>
+                  </div>
+
+                  {/* Fixed Footer */}
+                  <div className={cn(
+                    "p-6 border-t shrink-0 flex items-center gap-3",
+                    theme === 'dark' ? "border-white/5 bg-[#171320]" : "border-slate-100 bg-slate-50"
+                  )}>
+                    {selectedNotification.action_url && (
+                      <a 
+                        href={selectedNotification.action_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex-1 py-3 px-4 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-black uppercase text-xs text-center flex items-center justify-center gap-2 transition-all shadow-lg shadow-violet-600/20 cursor-pointer"
+                      >
+                        <ExternalLink size={14} />
+                        Visit Destination
+                      </a>
+                    )}
+                    <button 
+                      onClick={() => setSelectedNotification(null)}
+                      className={cn(
+                        "py-3 px-5 rounded-xl font-black uppercase text-xs transition-all cursor-pointer",
+                        selectedNotification.action_url ? "border" : "w-full py-4 text-center rounded-2xl bg-violet-600 hover:bg-violet-700 text-white shadow-xl shadow-violet-600/20",
+                        theme === 'dark' ? "border-white/10 text-white hover:bg-white/5" : "border-slate-200 text-slate-700 hover:bg-slate-50"
+                      )}
+                    >
+                      Close Context
+                    </button>
+                  </div>
+                </motion.div>
+              </div>
+            )}
+          </AnimatePresence>
         </>
       )}
     </AnimatePresence>

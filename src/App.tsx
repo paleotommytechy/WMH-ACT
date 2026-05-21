@@ -15,7 +15,7 @@ import { SettingsView } from './components/SettingsView';
 import { SubmissionDetailModal } from './components/SubmissionDetailModal';
 import { 
   Loader2, Plus, Calendar, Clock, ChevronRight, ChevronDown, TrendingUp, 
-  Shield, User as UserIcon, Star, CheckCircle2, AlertCircle 
+  Shield, User as UserIcon, Star, CheckCircle2, AlertCircle, MessageSquare 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format, startOfWeek, endOfWeek, isSameWeek } from 'date-fns';
@@ -441,48 +441,67 @@ export default function App() {
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
                         onClick={() => setSelectedSubForModal(s)}
-                        className={`backdrop-blur-sm p-5 rounded-2xl border shadow-sm transition-all flex items-center justify-between group cursor-pointer ${theme === 'dark' ? 'bg-white/5 border-white/10 hover:border-violet-500/50' : 'bg-white border-slate-200 hover:border-violet-300'}`}
+                        className={`backdrop-blur-sm p-5 rounded-2xl border shadow-sm transition-all flex flex-col gap-4 group cursor-pointer ${theme === 'dark' ? 'bg-white/5 border-white/10 hover:border-violet-500/50' : 'bg-white border-slate-200 hover:border-violet-300'}`}
                       >
-                        <div className="flex items-center gap-4">
-                          <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${theme === 'dark' ? 'bg-violet-500/10 text-violet-400 group-hover:bg-violet-600 group-hover:text-white' : 'bg-violet-50 text-violet-600 group-hover:bg-violet-100'}`}>
-                            <Clock size={24} />
-                          </div>
-                          <div>
-                            <h4 className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{s.task_completed}</h4>
-                            <div className={`flex items-center gap-2 text-xs ${theme === 'dark' ? 'text-white/40' : 'text-slate-500'}`}>
-                              <span>{format(new Date(s.submitted_date), 'MMM d, yyyy')}</span>
-                              <span>•</span>
-                              <span className="font-bold text-violet-400">{s.time_spent}m</span>
+                        <div className="flex items-center justify-between w-full">
+                          <div className="flex items-center gap-4">
+                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${theme === 'dark' ? 'bg-violet-500/10 text-violet-400 group-hover:bg-violet-600 group-hover:text-white' : 'bg-violet-50 text-violet-600 group-hover:bg-violet-100'}`}>
+                              <Clock size={24} />
+                            </div>
+                            <div>
+                              <h4 className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{s.task_completed}</h4>
+                              <div className={`flex items-center gap-2 text-xs ${theme === 'dark' ? 'text-white/40' : 'text-slate-500'}`}>
+                                <span>{format(new Date(s.submitted_date), 'MMM d, yyyy')}</span>
+                                <span>•</span>
+                                <span className="font-bold text-violet-400">{s.time_spent}m</span>
+                              </div>
                             </div>
                           </div>
+                          <div className="flex items-center gap-3">
+                            {s.is_draft && (
+                              <div className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase border ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white/40' : 'bg-slate-100 border-slate-200 text-slate-400'}`}>
+                                Draft
+                              </div>
+                            )}
+                            {s.review && (
+                              <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-black uppercase border ${
+                                s.review.status === 'excellent' ? 'bg-amber-500/10 border-amber-500/20 text-amber-500' :
+                                s.review.status === 'reviewed' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' :
+                                s.review.status === 'flagged' ? 'bg-rose-500/10 border-rose-500/20 text-rose-500' :
+                                'bg-slate-500/10 border-slate-500/20 text-slate-500'
+                              }`}>
+                                {s.review.status === 'excellent' && <Star size={10} />}
+                                {s.review.status === 'reviewed' && <CheckCircle2 size={10} />}
+                                {s.review.status === 'flagged' && <AlertCircle size={10} />}
+                                {s.review.status}
+                              </div>
+                            )}
+                            {s.proof_url && (
+                              <div
+                                className={`p-2 rounded-lg transition-all ${theme === 'dark' ? 'bg-white/5 text-white/40 hover:bg-violet-500/20 hover:text-violet-400' : 'bg-slate-100 text-slate-400 hover:bg-violet-50 hover:text-violet-600'}`}
+                              >
+                                <ChevronRight size={20} />
+                              </div>
+                            )}
+                          </div>
                         </div>
-                        <div className="flex items-center gap-3">
-                          {s.is_draft && (
-                            <div className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase border ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white/40' : 'bg-slate-100 border-slate-200 text-slate-400'}`}>
-                              Draft
+
+                        {/* Direct Instructor Feedback Snippet */}
+                        {s.review?.admin_notes && (
+                          <div className={`p-3 rounded-xl border flex flex-col gap-1 text-xs transition-colors ${
+                            theme === 'dark' 
+                              ? 'bg-violet-500/5 border-violet-500/10 text-violet-200/80 group-hover:border-violet-500/30' 
+                              : 'bg-violet-50/50 border-violet-100 text-[#4c445c] group-hover:border-violet-200'
+                          }`}>
+                            <div className="flex items-center gap-1.5 font-bold uppercase tracking-wider text-[10px] text-violet-400">
+                              <MessageSquare size={12} className="shrink-0 text-violet-400" />
+                              <span>Instructor Feedback</span>
                             </div>
-                          )}
-                          {s.review && (
-                            <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-black uppercase border ${
-                              s.review.status === 'excellent' ? 'bg-amber-500/10 border-amber-500/20 text-amber-500' :
-                              s.review.status === 'reviewed' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' :
-                              s.review.status === 'flagged' ? 'bg-rose-500/10 border-rose-500/20 text-rose-500' :
-                              'bg-slate-500/10 border-slate-500/20 text-slate-500'
-                            }`}>
-                              {s.review.status === 'excellent' && <Star size={10} />}
-                              {s.review.status === 'reviewed' && <CheckCircle2 size={10} />}
-                              {s.review.status === 'flagged' && <AlertCircle size={10} />}
-                              {s.review.status}
-                            </div>
-                          )}
-                          {s.proof_url && (
-                            <div
-                              className={`p-2 rounded-lg transition-all ${theme === 'dark' ? 'bg-white/5 text-white/40 hover:bg-violet-500/20 hover:text-violet-400' : 'bg-slate-100 text-slate-400 hover:bg-violet-50 hover:text-violet-600'}`}
-                            >
-                              <ChevronRight size={20} />
-                            </div>
-                          )}
-                        </div>
+                            <p className="line-clamp-2 italic leading-relaxed font-semibold">
+                              "{s.review.admin_notes}"
+                            </p>
+                          </div>
+                        )}
                       </motion.div>
                     ))
                   )}

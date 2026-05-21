@@ -1,10 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
-import { LogOut, User as UserIcon, Sun, Moon, Bell } from 'lucide-react';
+import { LogOut, User as UserIcon, Sun, Moon, Bell, AlertTriangle, X } from 'lucide-react';
 import { supabase } from '@/src/lib/supabase';
 import { NotificationCenter } from './NotificationCenter';
 import { NotificationService } from '@/src/lib/notifications';
 import { BottomNav } from './BottomNav';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -31,9 +32,22 @@ export const Layout: React.FC<LayoutProps> = ({
 }) => {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [hasUnreadAlertDismissed, setHasUnreadAlertDismissed] = useState(false);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
+  };
+
+  const handleMarkAllReadAndDismiss = async () => {
+    if (user) {
+      try {
+        await NotificationService.markAllAsRead(user.id);
+        setUnreadCount(0);
+        setHasUnreadAlertDismissed(true);
+      } catch (err) {
+        console.error('Error clearing:', err);
+      }
+    }
   };
 
   // Synchronize isNotificationsOpen with activeTab if it's 'settings' (WE NO LONGER DO THIS AUTO-OPEN)
@@ -58,18 +72,20 @@ export const Layout: React.FC<LayoutProps> = ({
 
       fetchUnread();
 
-      // Real-time subscription for new notifications
+      // Real-time subscription for new and updated notifications
       const channel = supabase
         .channel('notifications-changes')
         .on('postgres_changes', { 
-          event: 'INSERT', 
+          event: '*', 
           schema: 'public', 
           table: 'notifications',
           filter: `user_id=eq.${user.id}`
         }, (payload) => {
-          setUnreadCount(prev => prev + 1);
-          // Show local notification if permission granted
-          NotificationService.showLocalNotification(payload.new.title, payload.new.message);
+          fetchUnread();
+          if (payload.eventType === 'INSERT') {
+            // Show local notification if permission granted
+            NotificationService.showLocalNotification(payload.new.title, payload.new.message);
+          }
         })
         .subscribe();
 
@@ -193,6 +209,81 @@ export const Layout: React.FC<LayoutProps> = ({
           onClose={handleCloseNotifications} 
         />
       )}
+
+      {/* Unread system directives alert popup on load */}
+      <AnimatePresence>
+        {user && unreadCount > 0 && !hasUnreadAlertDismissed && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/80 backdrop-blur-md"
+              onClick={() => setHasUnreadAlertDismissed(true)}
+            />
+
+            {/* Alert Dialog Card */}
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className={`relative w-full max-w-md rounded-3xl border shadow-2xl p-8 space-y-6 z-10 ${
+                theme === 'dark' ? 'bg-[#1a1625] border-rose-500/20 text-white' : 'bg-white border-rose-100 text-slate-900'
+              }`}
+            >
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-rose-500/10 flex items-center justify-center shrink-0 border border-rose-500/30 animate-pulse">
+                  <AlertTriangle className="text-rose-500" size={24} />
+                </div>
+                <div className="space-y-1">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-rose-500 block">
+                    Attention Required
+                  </span>
+                  <h3 className="text-2xl font-black leading-tight tracking-tight">
+                    Unread Directives
+                  </h3>
+                </div>
+              </div>
+
+              <p className={`text-sm leading-relaxed ${theme === 'dark' ? 'text-slate-300' : 'text-slate-600'}`}>
+                You have <span className="text-rose-400 font-black">{unreadCount} unread update(s)</span> in your feed. 
+                Please check your Notification Hub for critical accountability directives, updates, or reviewed feedback.
+              </p>
+
+              <div className="flex flex-col gap-2 pt-2">
+                <button
+                  onClick={() => {
+                    setIsNotificationsOpen(true);
+                    setHasUnreadAlertDismissed(true);
+                  }}
+                  className="w-full py-4 rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white font-black uppercase text-xs shadow-xl shadow-violet-600/20 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer"
+                >
+                  Open Notification Hub ({unreadCount})
+                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleMarkAllReadAndDismiss}
+                    className={`flex-1 py-3 rounded-xl font-black uppercase text-[10px] transition-all border cursor-pointer ${
+                      theme === 'dark' ? 'border-white/10 text-white hover:bg-white/5' : 'border-slate-200 text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    Mark All Read
+                  </button>
+                  <button
+                    onClick={() => setHasUnreadAlertDismissed(true)}
+                    className={`flex-1 py-3 rounded-xl font-black uppercase text-[10px] transition-all border cursor-pointer ${
+                      theme === 'dark' ? 'border-white/10 text-white hover:bg-white/5' : 'border-slate-200 text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    Dismiss Alert
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

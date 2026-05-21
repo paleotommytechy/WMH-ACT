@@ -53,9 +53,10 @@ export const BottomNav: React.FC<BottomNavProps> = ({
               <motion.button
                 whileTap={{ scale: 0.9 }}
                 onClick={onAddClick}
-                className="w-14 h-14 bg-violet-600 rounded-full flex items-center justify-center text-white shadow-[0_0_20px_rgba(124,58,237,0.5)] border-4"
+                className="w-14 h-14 bg-violet-600 rounded-full flex items-center justify-center text-white shadow-[0_0_20px_rgba(124,58,237,0.5)] border-4 cursor-pointer select-none"
                 style={{ 
-                   borderColor: isDark ? '#130722' : '#f8fafc'
+                   borderColor: isDark ? '#130722' : '#f8fafc',
+                   touchAction: 'manipulation'
                 }}
               >
                 <Plus size={32} strokeWidth={3} />
@@ -134,7 +135,8 @@ interface NavButtonProps {
 const NavButton: React.FC<NavButtonProps> = ({ icon, label, active, onClick, isDark }) => (
   <button 
     onClick={onClick}
-    className="flex flex-col items-center justify-center gap-1 min-w-[60px]"
+    className="flex flex-col items-center justify-center gap-1 min-w-[60px] cursor-pointer select-none active:scale-95 active:opacity-80 transition-all duration-75"
+    style={{ touchAction: 'manipulation' }}
   >
     <div className={`transition-colors duration-200 ${active ? 'text-violet-500' : isDark ? 'text-white/40' : 'text-slate-400'}`}>
       {icon}

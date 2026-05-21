@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { X, Clock, ExternalLink, Calendar, MessageSquare, Star, CheckCircle2, AlertCircle, Maximize2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Submission } from '@/src/lib/types';
+import Markdown from 'react-markdown';
 
 interface SubmissionDetailModalProps {
   submission: Submission | any;
@@ -22,6 +23,22 @@ export const SubmissionDetailModal: React.FC<SubmissionDetailModalProps> = ({
 }) => {
   const [showLightbox, setShowLightbox] = useState(false);
 
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    if (isOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = 'hidden';
+    }
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = '';
+    };
+  }, [isOpen, onClose]);
+
   if (!submission) return null;
 
   const isImage = (url?: string) => {
@@ -32,14 +49,16 @@ export const SubmissionDetailModal: React.FC<SubmissionDetailModalProps> = ({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div 
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 cursor-pointer"
+          onClick={onClose}
+        >
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={onClose}
-            className="absolute inset-0 bg-black/80 backdrop-blur-md"
+            className="absolute inset-0 bg-black/80 backdrop-blur-md pointer-events-none"
           />
 
           {/* Modal Content */}
@@ -47,29 +66,34 @@ export const SubmissionDetailModal: React.FC<SubmissionDetailModalProps> = ({
             initial={{ scale: 0.9, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.9, opacity: 0, y: 20 }}
-            className={`relative w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden border ${
-              theme === 'dark' ? 'bg-[#1a1625] border-white/10' : 'bg-white border-slate-200'
+            onClick={(e) => e.stopPropagation()}
+            className={`relative w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden border cursor-default flex flex-col max-h-[90vh] md:max-h-[85vh] ${
+              theme === 'dark' ? 'bg-[#1a1625] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'
             }`}
           >
-            <div className="p-8 space-y-6">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h3 className={`text-2xl font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-                    Submission Details
-                  </h3>
-                  <div className={`flex items-center gap-2 text-sm mt-1 ${theme === 'dark' ? 'text-white/40' : 'text-slate-500'}`}>
-                    <Calendar size={14} className="text-violet-400" />
-                    {format(new Date(submission.submitted_date), 'MMMM d, yyyy')}
-                  </div>
+            {/* Modal Header (Fixed at the top) */}
+            <div className={`p-6 md:p-8 pb-4 flex justify-between items-start shrink-0 border-b select-none ${
+              theme === 'dark' ? 'border-white/5 bg-[#1a1625]' : 'border-slate-100 bg-white'
+            }`}>
+              <div>
+                <h3 className={`text-2xl font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                  Submission Details
+                </h3>
+                <div className={`flex items-center gap-2 text-sm mt-1 ${theme === 'dark' ? 'text-white/40' : 'text-slate-500'}`}>
+                  <Calendar size={14} className="text-violet-400" />
+                  {format(new Date(submission.submitted_date), 'MMMM d, yyyy')}
                 </div>
-                <button 
-                  onClick={onClose} 
-                  className={`p-2 rounded-xl transition-colors ${theme === 'dark' ? 'hover:bg-white/10 text-white/30' : 'hover:bg-slate-100 text-slate-400'}`}
-                >
-                  <X size={24} />
-                </button>
               </div>
+              <button 
+                onClick={onClose} 
+                className={`p-2 rounded-xl transition-all hover:scale-105 active:scale-95 cursor-pointer ${theme === 'dark' ? 'hover:bg-white/10 text-white/30 hover:text-white' : 'hover:bg-slate-100 text-slate-400 hover:text-slate-900'}`}
+              >
+                <X size={24} />
+              </button>
+            </div>
 
+            {/* Modal Body (Scrollable container) */}
+            <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-6">
               {/* Status Badge */}
               {submission.is_draft ? (
                 <div className={`flex items-center gap-4 p-4 rounded-2xl border bg-slate-500/10 border-slate-500/20 text-slate-400`}>
@@ -81,7 +105,7 @@ export const SubmissionDetailModal: React.FC<SubmissionDetailModalProps> = ({
                   {onEditDraft && (
                     <button
                       onClick={() => onEditDraft(submission)}
-                      className="bg-violet-600 hover:bg-violet-500 text-white px-4 py-2 rounded-xl text-xs font-black uppercase transition-all shadow-lg shadow-violet-600/20"
+                      className="bg-violet-600 hover:bg-violet-500 text-white px-4 py-2 rounded-xl text-xs font-black uppercase transition-all shadow-lg shadow-violet-600/20 cursor-pointer"
                     >
                       Continue Editing
                     </button>
@@ -138,7 +162,7 @@ export const SubmissionDetailModal: React.FC<SubmissionDetailModalProps> = ({
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                         <button 
                           onClick={() => setShowLightbox(true)}
-                          className="bg-white text-black px-4 py-2 rounded-xl font-bold flex items-center gap-2 shadow-xl scale-95 group-hover:scale-100 transition-transform"
+                          className="bg-white text-black px-4 py-2 rounded-xl font-bold flex items-center gap-2 shadow-xl scale-95 group-hover:scale-100 transition-transform cursor-pointer"
                         >
                           <Maximize2 size={16} />
                           Expand View
@@ -171,9 +195,9 @@ export const SubmissionDetailModal: React.FC<SubmissionDetailModalProps> = ({
                      <MessageSquare size={16} className="text-violet-400" />
                      <span className="text-[10px] font-black uppercase text-violet-400 tracking-widest">Instructor Feedback</span>
                    </div>
-                   <p className={`text-sm font-medium italic ${theme === 'dark' ? 'text-white/80' : 'text-slate-800'}`}>
-                     "{submission.review.admin_notes}"
-                   </p>
+                   <div className={`text-sm font-medium leading-relaxed break-words whitespace-pre-wrap markdown-body ${theme === 'dark' ? 'text-white/80' : 'text-slate-800'}`}>
+                     <Markdown>{submission.review.admin_notes}</Markdown>
+                   </div>
                 </div>
               )}
             </div>

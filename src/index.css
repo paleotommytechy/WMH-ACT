@@ -38,3 +38,8 @@
 .min-h-screen-ios {
   min-height: -webkit-fill-available;
 }
+
+/* Eliminate 300ms touch delay and optimize mobile UX accessibility */
+a, button, [role="button"], select, input, textarea {
+  touch-action: manipulation;
+}
