@@ -1,6 +1,14 @@
 
 -- Notification & Reminder System for Wilson Mastery Hub
 
+-- 0. System Configurations (For internal / dynamic config flags like VAPID keys)
+CREATE TABLE IF NOT EXISTS public.system_configs (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- 1. Notification Preferences
 CREATE TABLE IF NOT EXISTS notification_preferences (
   user_id UUID PRIMARY KEY REFERENCES profiles(id) ON DELETE CASCADE,

@@ -69,6 +69,17 @@ export default function App() {
     }
   }, [profile?.preferred_theme]);
 
+  // Sync PWA web push subscription dynamically if permissions exist
+  useEffect(() => {
+    if (profile?.id && 'Notification' in window && Notification.permission === 'granted') {
+      import('./lib/notifications').then(({ NotificationService }) => {
+        NotificationService.subscribeUserToPush(profile.id).catch(err => {
+          console.warn('Background push subscription update failed:', err);
+        });
+      });
+    }
+  }, [profile?.id]);
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);

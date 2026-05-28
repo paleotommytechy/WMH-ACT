@@ -4,6 +4,7 @@ import { fileURLToPath } from "url";
 // No top-level vite import to avoid serverless issues
 import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
+import webpush from "web-push";
 
 dotenv.config();
 
@@ -41,6 +42,172 @@ function setupRoutes(app: Express) {
       },
     }
   );
+
+  // --- VAPID / Web Push Setup ---
+  let vapidPublic = process.env.VITE_VAPID_PUBLIC_KEY;
+  let vapidPrivate = process.env.VAPID_PRIVATE_KEY;
+
+  async function getOrInitVapidKeys() {
+    if (vapidPublic && vapidPrivate) {
+      webpush.setVapidDetails(
+        "mailto:olusegunifetomiwa2000@gmail.com",
+        vapidPublic,
+        vapidPrivate
+      );
+      return { publicKey: vapidPublic, privateKey: vapidPrivate };
+    }
+
+    try {
+      const { data: configs, error } = await supabaseAdmin
+        .from('system_configs')
+        .select('*');
+
+      let pubKeyDb = configs?.find(c => c.key === 'vapid_public_key')?.value;
+      let privKeyDb = configs?.find(c => c.key === 'vapid_private_key')?.value;
+
+      if (pubKeyDb && privKeyDb) {
+        vapidPublic = pubKeyDb;
+        vapidPrivate = privKeyDb;
+      } else {
+        const keys = webpush.generateVAPIDKeys();
+        vapidPublic = keys.publicKey;
+        vapidPrivate = keys.privateKey;
+
+        await supabaseAdmin.from('system_configs').upsert([
+          { key: 'vapid_public_key', value: vapidPublic },
+          { key: 'vapid_private_key', value: vapidPrivate }
+        ]);
+      }
+
+      webpush.setVapidDetails(
+        "mailto:olusegunifetomiwa2000@gmail.com",
+        vapidPublic,
+        vapidPrivate
+      );
+    } catch (err) {
+      console.warn("Could not load stable VAPID keys, using dynamic ephemeral keys:", err);
+      if (!vapidPublic || !vapidPrivate) {
+        const keys = webpush.generateVAPIDKeys();
+        vapidPublic = keys.publicKey;
+        vapidPrivate = keys.privateKey;
+        webpush.setVapidDetails(
+          "mailto:olusegunifetomiwa2000@gmail.com",
+          vapidPublic,
+          vapidPrivate
+        );
+      }
+    }
+
+    return { publicKey: vapidPublic, privateKey: vapidPrivate };
+  }
+
+  // Background Notification Dispatcher (Poller for Push and real-time PWA channels)
+  let isPolling = false;
+
+  async function startNotificationDispatcher() {
+    const keys = await getOrInitVapidKeys();
+    console.log("VAPID Keys active. Public Key exists:", !!keys.publicKey);
+
+    setInterval(async () => {
+      if (isPolling) return;
+      isPolling = true;
+
+      try {
+        const { data: unsentNotifications, error: fetchError } = await supabaseAdmin
+          .from('notifications')
+          .select('*')
+          .is('metadata->pushed', null)
+          .order('created_at', { ascending: true })
+          .limit(10);
+
+        if (fetchError) {
+          if (fetchError.message?.includes('JSON') || fetchError.code === 'PGRST100') {
+             const { data: allUnsent, error: fbError } = await supabaseAdmin
+               .from('notifications')
+               .select('*')
+               .order('created_at', { ascending: true })
+               .limit(50);
+             
+             if (!fbError && allUnsent) {
+               const unsentFiltered = allUnsent.filter(n => !n.metadata || n.metadata.pushed !== true).slice(0, 10);
+               await dispatchBatch(unsentFiltered);
+             }
+          } else {
+             console.error("Error fetching unsent notifications in worker:", fetchError);
+          }
+        } else if (unsentNotifications && unsentNotifications.length > 0) {
+          await dispatchBatch(unsentNotifications);
+        }
+      } catch (err) {
+        console.error("Notification Poller Exception:", err);
+      } finally {
+        isPolling = false;
+      }
+    }, 5000);
+  }
+
+  async function dispatchBatch(batch: any[]) {
+    for (const notification of batch) {
+      try {
+        const { data: tokens, error: tokenError } = await supabaseAdmin
+          .from('push_tokens')
+          .select('*')
+          .eq('user_id', notification.user_id);
+
+        if (tokenError) {
+          console.error(`Error querying push tokens for user ${notification.user_id}:`, tokenError);
+          continue;
+        }
+
+        if (tokens && tokens.length > 0) {
+          for (const tokenRow of tokens) {
+            try {
+              const subscription = JSON.parse(tokenRow.token);
+              const payload = JSON.stringify({
+                title: notification.title,
+                message: notification.message,
+                url: notification.action_url || '/'
+              });
+
+              await webpush.sendNotification(subscription, payload);
+              console.log(`Web push notification sent to token ${tokenRow.id} for user ${notification.user_id}`);
+            } catch (pushErr: any) {
+              console.warn(`Failed to push notification to device token ${tokenRow.id}:`, pushErr.message);
+              if (pushErr.statusCode === 410 || pushErr.statusCode === 404) {
+                console.log(`Revoking inactive/expired push token: ${tokenRow.id}`);
+                await supabaseAdmin
+                  .from('push_tokens')
+                  .delete()
+                  .eq('id', tokenRow.id);
+              }
+            }
+          }
+        }
+
+        const updatedMetadata = { ...(notification.metadata || {}), pushed: true };
+        await supabaseAdmin
+          .from('notifications')
+          .update({ metadata: updatedMetadata })
+          .eq('id', notification.id);
+
+      } catch (singleErr) {
+        console.error(`Failed to process notification ${notification.id}:`, singleErr);
+      }
+    }
+  }
+
+  // Start back-end notification poller worker
+  startNotificationDispatcher();
+
+  // Handshake route for front-end dynamic VAPID enrollment
+  app.get("/api/notifications/vapid-public-key", async (req, res) => {
+    try {
+      const { publicKey } = await getOrInitVapidKeys();
+      res.status(200).json({ publicKey });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
 
   app.post("/api/admin/create-student", async (req, res) => {
     const { fullName, realEmail, track, role, username, password, adminId } = req.body;

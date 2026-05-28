@@ -2,6 +2,21 @@
 import { supabase } from './supabase';
 import { AppNotification, NotificationPreference } from './types';
 
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding)
+    .replace(/\-/g, '+')
+    .replace(/_/g, '/');
+
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
 export const NotificationService = {
   // --- Push Notifications ---
   
@@ -21,16 +36,32 @@ export const NotificationService = {
     }
 
     const registration = await navigator.serviceWorker.ready;
-    const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+    let vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+    
+    // Attempt dynamic backend handshake to pull the active persistent VAPID public key
+    try {
+      const res = await fetch('/api/notifications/vapid-public-key');
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.publicKey) {
+          vapidPublicKey = data.publicKey;
+        }
+      }
+    } catch (e) {
+      console.warn('Unable to handshake with backend VAPID endpoint, falling back to client environment config:', e);
+    }
     
     if (!vapidPublicKey) {
-      console.warn('VITE_VAPID_PUBLIC_KEY not found in environment');
+      console.warn('VAPID public key not found in server or client environment');
       return null;
     }
 
+    // Convert the key for solid cross-browser/mobile compatibility
+    const convertedKey = urlBase64ToUint8Array(vapidPublicKey);
+
     const subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: vapidPublicKey
+      applicationServerKey: convertedKey
     });
 
     // Save to Supabase
