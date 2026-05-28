@@ -419,12 +419,55 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark', 
   // Search & Filter States
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'at-risk' | 'inactive'>('all');
+
+  // Submission Hub Filter and Search States
+  const [subSearchName, setSubSearchName] = useState('');
+  const [subSearchTrack, setSubSearchTrack] = useState('');
+  const [subSearchDate, setSubSearchDate] = useState('');
+  const [auditPage, setAuditPage] = useState(1);
+  const auditPageSize = 5; // Default displaying the latest 5 reviews
   
   // Detail views
   const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
   const [reviewForm, setReviewForm] = useState({ notes: '', status: 'reviewed' as any });
   const [reviewHubTab, setReviewHubTab] = useState<'pending' | 'history'>('pending');
   const [initLoading, setInitLoading] = useState(false);
+
+  // Helper method to filter submissions based on student name, track and submission date
+  const getFilteredSubmissions = () => {
+    let list = reviewHubTab === 'pending' 
+      ? submissions.filter(s => !s.review || s.review.status === 'pending')
+      : submissions.filter(s => s.review && s.review.status !== 'pending');
+
+    if (subSearchName.trim()) {
+      const q = subSearchName.toLowerCase().trim();
+      list = list.filter(s => {
+        const student = s.student || users.find(u => u.id === s.user_id);
+        return student?.full_name?.toLowerCase().includes(q) || student?.username?.toLowerCase().includes(q);
+      });
+    }
+
+    if (subSearchTrack.trim()) {
+      const q = subSearchTrack.toLowerCase().trim();
+      list = list.filter(s => {
+        const student = s.student || users.find(u => u.id === s.user_id);
+        return student?.primary_track?.toLowerCase().includes(q) || s.task_completed?.toLowerCase().includes(q);
+      });
+    }
+
+    if (subSearchDate) {
+      list = list.filter(s => {
+        try {
+          const submittedDateStr = format(new Date(s.submitted_date), 'yyyy-MM-dd');
+          return submittedDateStr === subSearchDate;
+        } catch {
+          return false;
+        }
+      });
+    }
+
+    return list;
+  };
 
   const initInfrastructure = async () => {
     try {
@@ -982,121 +1025,246 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark', 
               animate={{ opacity: 1, x: 0 }}
               className="space-y-6"
             >
-              <div className="flex gap-2 p-1 rounded-2xl bg-white/5 border border-white/10 w-fit">
-                <button 
-                  onClick={() => setReviewHubTab('pending')}
-                  className={`px-6 py-2 rounded-xl text-xs font-black uppercase transition-all ${reviewHubTab === 'pending' ? 'bg-violet-600 text-white' : 'text-white/40 hover:text-white'}`}
-                >
-                  Needs Review ({submissions.filter(s => !s.review || s.review.status === 'pending').length})
-                </button>
-                <button 
-                  onClick={() => setReviewHubTab('history')}
-                  className={`px-6 py-2 rounded-xl text-xs font-black uppercase transition-all ${reviewHubTab === 'history' ? 'bg-white/10 text-white' : 'text-white/40 hover:text-white'}`}
-                >
-                  Audit History
-                </button>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex gap-2 p-1 rounded-2xl bg-white/5 border border-white/10 w-fit">
+                  <button 
+                    onClick={() => { setReviewHubTab('pending'); setAuditPage(1); }}
+                    className={`px-6 py-2 rounded-xl text-xs font-black uppercase transition-all ${reviewHubTab === 'pending' ? 'bg-violet-600 text-white' : 'text-white/40 hover:text-white'}`}
+                  >
+                    Needs Review ({submissions.filter(s => !s.review || s.review.status === 'pending').length})
+                  </button>
+                  <button 
+                    onClick={() => { setReviewHubTab('history'); setAuditPage(1); }}
+                    className={`px-6 py-2 rounded-xl text-xs font-black uppercase transition-all ${reviewHubTab === 'history' ? 'bg-white/10 text-white' : 'text-white/40 hover:text-white'}`}
+                  >
+                    Audit History
+                  </button>
+                </div>
+
+                {/* Submissions Stats summary */}
+                <div className="text-right text-xs text-white/40 flex items-center gap-2">
+                  <span className="font-bold text-violet-400">{submissions.length}</span> submissions logged in total
+                </div>
+              </div>
+
+              {/* Advanced Filters Toolbar */}
+              <div className={`p-5 rounded-3xl border grid grid-cols-1 sm:grid-cols-3 gap-4 ${
+                theme === 'dark' ? 'bg-neutral-900/40 border-white/10 text-white' : 'bg-white border-slate-200 shadow-sm text-slate-800'
+              }`}>
+                <div className="space-y-1">
+                  <label className={`text-[10px] font-bold uppercase tracking-widest ${theme === 'dark' ? 'text-violet-400' : 'text-violet-600'}`}>Search Student</label>
+                  <input 
+                    type="text"
+                    value={subSearchName}
+                    onChange={(e) => { setSubSearchName(e.target.value); setAuditPage(1); }}
+                    placeholder="Search name or username..."
+                    className={`w-full border rounded-xl px-4 py-2.5 text-xs outline-none transition-all ${
+                      theme === 'dark' ? 'bg-white/5 border-white/10 text-white focus:border-violet-500' : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-violet-500'
+                    }`}
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className={`text-[10px] font-bold uppercase tracking-widest ${theme === 'dark' ? 'text-violet-400' : 'text-violet-600'}`}>Track / Stream</label>
+                  <select
+                    value={subSearchTrack}
+                    onChange={(e) => { setSubSearchTrack(e.target.value); setAuditPage(1); }}
+                    className={`w-full border rounded-xl px-4 py-2.5 text-xs outline-none transition-all ${
+                      theme === 'dark' ? 'bg-[#1a1625] border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'
+                    }`}
+                  >
+                    <option value="">All Tracks</option>
+                    <option value="ui/ux">UI/UX Design</option>
+                    <option value="frontend">Frontend Engineering</option>
+                    <option value="backend">Backend Engineering</option>
+                    <option value="fullstack">Fullstack Engineering</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className={`text-[10px] font-bold uppercase tracking-widest ${theme === 'dark' ? 'text-violet-400' : 'text-violet-600'}`}>Filter by Date</label>
+                  <div className="flex gap-2">
+                    <input 
+                      type="date"
+                      value={subSearchDate}
+                      onChange={(e) => { setSubSearchDate(e.target.value); setAuditPage(1); }}
+                      className={`flex-1 border rounded-xl px-3 py-2 text-xs outline-none transition-all ${
+                        theme === 'dark' ? 'bg-[#1a1625] border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'
+                      }`}
+                    />
+                    {subSearchDate && (
+                      <button 
+                        onClick={() => { setSubSearchDate(''); setAuditPage(1); }}
+                        className={`px-3 rounded-xl text-xs font-bold transition-all ${
+                          theme === 'dark' ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                        }`}
+                      >
+                        Reset
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 gap-4">
-                {(reviewHubTab === 'pending' 
-                  ? submissions.filter(s => !s.review || s.review.status === 'pending')
-                  : submissions.filter(s => s.review && s.review.status !== 'pending')
-                ).map((sub: any) => {
-                  const student = sub.student || users.find(u => u.id === sub.user_id);
+                {(() => {
+                  const filteredList = getFilteredSubmissions();
+                  const displayedList = reviewHubTab === 'history'
+                    ? filteredList.slice((auditPage - 1) * auditPageSize, auditPage * auditPageSize)
+                    : filteredList;
+                  const totalAuditPages = Math.ceil(filteredList.length / auditPageSize);
+
                   return (
-                    <motion.div
-                      layout
-                      key={sub.id}
-                      className={`p-6 rounded-3xl border backdrop-blur-sm transition-all flex flex-col md:flex-row md:items-center justify-between gap-6 ${
-                        theme === 'dark' ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200 shadow-sm'
-                      }`}
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
-                          sub.review?.status === 'flagged' ? 'bg-rose-500/10 text-rose-400' :
-                          sub.review?.status === 'excellent' ? 'bg-amber-500/10 text-amber-400' :
-                          'bg-violet-500/10 text-violet-400'
-                        }`}>
-                          {sub.review?.status === 'excellent' ? <Star size={24} /> : 
-                           sub.review?.status === 'flagged' ? <AlertCircle size={24} /> : <Clock size={24} />}
-                        </div>
-                        <div className="min-w-0 flex-1 flex items-start gap-4">
-                          {(sub.proof_url?.match(/\.(jpeg|jpg|gif|png|webp)$/) || sub.proof_url?.includes('supabase.co/storage/v1/object/public/proofs/')) && (
-                            <div 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setShowLightbox(sub.proof_url);
-                              }}
-                              className="hidden sm:block w-16 h-16 rounded-xl overflow-hidden border border-white/10 flex-shrink-0 cursor-zoom-in hover:border-violet-500/50 transition-all"
-                            >
-                              <img src={sub.proof_url} alt="Proof thumb" className="w-full h-full object-cover" />
-                            </div>
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <h4 className={`font-black truncate ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{sub.task_completed}</h4>
-                            <p className={`text-xs ${theme === 'dark' ? 'text-white/40' : 'text-slate-500'}`}>
-                              By <span className="text-violet-400 font-bold">{student?.full_name || student?.username || 'Anonymous Student'}</span> • {format(new Date(sub.submitted_date), 'MMM d, HH:mm')}
-                            </p>
-                            {sub.review?.admin_notes && (
-                              <div className={`text-xs mt-2 p-2 rounded-lg italic border whitespace-pre-wrap break-words markdown-body ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white/50' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>
-                                <div className="flex gap-1.5 items-start">
-                                  <MessageSquare size={12} className="mt-0.5 shrink-0" />
-                                  <div className="flex-1">
-                                    <Markdown>{sub.review.admin_notes}</Markdown>
+                    <>
+                      {displayedList.map((sub: any) => {
+                        const student = sub.student || users.find(u => u.id === sub.user_id);
+                        return (
+                          <motion.div
+                            layout
+                            key={sub.id}
+                            className={`p-6 rounded-3xl border backdrop-blur-sm transition-all flex flex-col md:flex-row md:items-center justify-between gap-6 ${
+                              theme === 'dark' ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200 shadow-sm'
+                            }`}
+                          >
+                            <div className="flex items-center gap-4 flex-1 min-w-0">
+                              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${
+                                sub.review?.status === 'flagged' ? 'bg-rose-500/10 text-rose-400' :
+                                sub.review?.status === 'excellent' ? 'bg-amber-500/10 text-amber-400' :
+                                'bg-violet-500/10 text-violet-400'
+                              }`}>
+                                {sub.review?.status === 'excellent' ? <Star size={24} /> : 
+                                 sub.review?.status === 'flagged' ? <AlertCircle size={24} /> : <Clock size={24} />}
+                              </div>
+                              <div className="min-w-0 flex-1 flex items-start gap-4">
+                                {(sub.proof_url?.match(/\.(jpeg|jpg|gif|png|webp)$/) || sub.proof_url?.includes('supabase.co/storage/v1/object/public/proofs/')) && (
+                                  <div 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setShowLightbox(sub.proof_url);
+                                    }}
+                                    className="hidden sm:block w-16 h-16 rounded-xl overflow-hidden border border-white/10 flex-shrink-0 cursor-zoom-in hover:border-violet-500/50 transition-all"
+                                  >
+                                    <img src={sub.proof_url} alt="Proof thumb" className="w-full h-full object-cover" />
                                   </div>
+                                )}
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <h4 className={`font-black truncate ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{sub.task_completed}</h4>
+                                    {student?.primary_track && (
+                                      <span className="text-[9px] font-extrabold uppercase px-2 py-0.5 bg-violet-600/10 text-violet-400 border border-violet-500/20 rounded-full">
+                                        {student.primary_track}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className={`text-xs ${theme === 'dark' ? 'text-white/40' : 'text-slate-500'} mt-1`}>
+                                    By <span className="text-violet-400 font-bold">{student?.full_name || student?.username || 'Anonymous Student'}</span> • {format(new Date(sub.submitted_date), 'MMM d, HH:mm')}
+                                  </p>
+                                  {sub.review?.admin_notes && (
+                                    <div className={`text-xs mt-2 p-2 rounded-lg italic border whitespace-pre-wrap break-words markdown-body ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white/50' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>
+                                      <div className="flex gap-1.5 items-start">
+                                        <MessageSquare size={12} className="mt-0.5 shrink-0" />
+                                        <div className="flex-1">
+                                          <Markdown>{sub.review.admin_notes}</Markdown>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+                                  {sub.review?.admin?.full_name && (
+                                    <p className="text-[10px] mt-1 text-violet-400 font-bold uppercase tracking-widest">
+                                      Reviewed by {sub.review.admin.full_name}
+                                    </p>
+                                  )}
                                 </div>
                               </div>
-                            )}
-                            {sub.review?.admin?.full_name && (
-                              <p className="text-[10px] mt-1 text-violet-400 font-bold uppercase tracking-widest">
-                                Reviewed by {sub.review.admin.full_name}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
+                            </div>
 
-                      <div className="flex flex-wrap items-center gap-4">
-                        {sub.review && (
-                          <div className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase border ${
-                            sub.review.status === 'excellent' ? 'bg-amber-500/10 border-amber-500/20 text-amber-500' :
-                            sub.review.status === 'reviewed' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' :
-                            'bg-rose-500/10 border-rose-500/20 text-rose-500'
-                          }`}>
-                            {sub.review.status}
+                            <div className="flex flex-wrap items-center gap-4">
+                              {sub.review && (
+                                <div className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase border ${
+                                  sub.review.status === 'excellent' ? 'bg-amber-500/10 border-amber-500/20 text-amber-500' :
+                                  sub.review.status === 'reviewed' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' :
+                                  'bg-rose-500/10 border-rose-500/20 text-rose-500'
+                                }`}>
+                                  {sub.review.status}
+                                </div>
+                              )}
+                              <div className={`px-4 py-2 rounded-xl text-xs font-bold ${theme === 'dark' ? 'bg-white/5 text-white/60' : 'bg-slate-50 text-slate-500'}`}>
+                                {sub.time_spent} mins
+                              </div>
+                              <button 
+                                onClick={() => {
+                                  setReviewForm({ notes: sub.review?.admin_notes || '', status: sub.review?.status || 'reviewed' });
+                                  setSelectedSubmission(sub);
+                                }}
+                                className={`px-6 py-2 rounded-xl text-xs font-black transition-all shadow-lg ${
+                                  sub.review ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-violet-600 hover:bg-violet-500 text-white shadow-violet-600/20'
+                                }`}
+                              >
+                                {sub.review ? 'Update Review' : 'Review Submission'}
+                              </button>
+                            </div>
+                          </motion.div>
+                        );
+                      })}
+
+                      {/* Pagination Controls */}
+                      {reviewHubTab === 'history' && totalAuditPages > 1 && (
+                        <div className={`flex flex-col sm:flex-row items-center justify-between p-4 rounded-2xl border gap-4 ${
+                          theme === 'dark' ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200'
+                        }`}>
+                          <p className={`text-xs ${theme === 'dark' ? 'text-white/40' : 'text-slate-500'}`}>
+                            Showing page <span className="font-extrabold text-violet-400">{auditPage}</span> of <span className="font-bold">{totalAuditPages}</span> ({filteredList.length} reviews matched)
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <button
+                              disabled={auditPage === 1}
+                              onClick={() => setAuditPage(p => Math.max(1, p - 1))}
+                              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-30 ${
+                                theme === 'dark' ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-slate-105 border border-slate-200 text-slate-700 hover:bg-slate-100'
+                              }`}
+                            >
+                              Previous
+                            </button>
+                            <div className="flex items-center gap-1">
+                              {Array.from({ length: totalAuditPages }).map((_, i) => (
+                                <button
+                                  key={i}
+                                  onClick={() => setAuditPage(i + 1)}
+                                  className={`w-8 h-8 rounded-xl text-xs font-bold transition-all ${
+                                    auditPage === i + 1
+                                      ? 'bg-violet-600 text-white'
+                                      : theme === 'dark' ? 'bg-white/5 text-white/60 hover:bg-white/10' : 'bg-slate-50 border border-slate-200 text-slate-750 hover:bg-slate-100'
+                                  }`}
+                                >
+                                  {i + 1}
+                                </button>
+                              ))}
+                            </div>
+                            <button
+                              disabled={auditPage === totalAuditPages}
+                              onClick={() => setAuditPage(p => Math.min(totalAuditPages, p + 1))}
+                              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-30 ${
+                                theme === 'dark' ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-slate-105 border border-slate-200 text-slate-750 hover:bg-slate-100'
+                              }`}
+                            >
+                              Next
+                            </button>
                           </div>
-                        )}
-                        <div className={`px-4 py-2 rounded-xl text-xs font-bold ${theme === 'dark' ? 'bg-white/5 text-white/60' : 'bg-slate-50 text-slate-500'}`}>
-                          {sub.time_spent} mins
                         </div>
-                        <button 
-                          onClick={() => {
-                            setReviewForm({ notes: sub.review?.admin_notes || '', status: sub.review?.status || 'reviewed' });
-                            setSelectedSubmission(sub);
-                          }}
-                          className={`px-6 py-2 rounded-xl text-xs font-black transition-all shadow-lg ${
-                            sub.review ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-violet-600 hover:bg-violet-500 text-white shadow-violet-600/20'
-                          }`}
-                        >
-                          {sub.review ? 'Update Review' : 'Review Submission'}
-                        </button>
-                      </div>
-                    </motion.div>
+                      )}
+
+                      {filteredList.length === 0 && (
+                        <div className="py-20 text-center select-none">
+                          <CheckCircle2 className="mx-auto text-emerald-500 mb-4" size={48} />
+                          <h3 className={`text-2xl font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Gallery Empty</h3>
+                          <p className={`text-sm ${theme === 'dark' ? 'text-white/40' : 'text-slate-500'}`}>
+                            No matching submissions found for the current search options.
+                          </p>
+                        </div>
+                      )}
+                    </>
                   );
-                })}
-                
-                {(reviewHubTab === 'pending' 
-                  ? submissions.filter(s => !s.review || s.review.status === 'pending')
-                  : submissions.filter(s => s.review && s.review.status !== 'pending')
-                ).length === 0 && (
-                   <div className="py-20 text-center">
-                     <CheckCircle2 className="mx-auto text-emerald-500 mb-4" size={48} />
-                     <h3 className={`text-2xl font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Gallery Empty</h3>
-                     <p className={`text-sm ${theme === 'dark' ? 'text-white/40' : 'text-slate-500'}`}>
-                       {reviewHubTab === 'pending' ? 'No pending submissions.' : 'No audit history yet.'}
-                     </p>
-                   </div>
-                )}
+                })()}
               </div>
             </motion.div>
           )}

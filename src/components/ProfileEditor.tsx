@@ -307,6 +307,18 @@ export function ProfileEditor({ profile, onUpdate, onBack, theme = 'dark' }: Pro
                 className={`w-full border rounded-xl px-4 py-3 focus:ring-2 focus:ring-violet-500/50 outline-none transition-all ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
               />
             </div>
+            <div className="space-y-2">
+              <label className={`text-[10px] uppercase font-bold tracking-wider ${theme === 'dark' ? 'text-white/40' : 'text-slate-400'}`}>Weekly Focus Hour Goal (hours)</label>
+              <input 
+                type="number"
+                min={1}
+                max={168}
+                value={formData.weekly_hour_goal !== undefined ? formData.weekly_hour_goal : 10}
+                onChange={e => updateField('weekly_hour_goal', parseInt(e.target.value) || 10)}
+                className={`w-full border rounded-xl px-4 py-3 focus:ring-2 focus:ring-violet-500/50 outline-none transition-all ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
+              />
+               <p className={`text-[10px] ${theme === 'dark' ? 'text-white/30' : 'text-slate-400'}`}>Adjust your personalized weekly discipline threshold of hours (Default: 10).</p>
+            </div>
             </div>
           </div>
         </div>

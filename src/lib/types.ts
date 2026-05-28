@@ -76,6 +76,7 @@ export interface Profile {
     push: boolean;
   };
   account_status: string;
+  weekly_hour_goal?: number;
   created_at: string;
   updated_at: string;
 }

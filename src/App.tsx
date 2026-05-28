@@ -15,7 +15,8 @@ import { SettingsView } from './components/SettingsView';
 import { SubmissionDetailModal } from './components/SubmissionDetailModal';
 import { 
   Loader2, Plus, Calendar, Clock, ChevronRight, ChevronDown, TrendingUp, 
-  Shield, User as UserIcon, Star, CheckCircle2, AlertCircle, MessageSquare 
+  Shield, User as UserIcon, Star, CheckCircle2, AlertCircle, MessageSquare,
+  Folder, FolderOpen
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format, startOfWeek, endOfWeek, isSameWeek } from 'date-fns';
@@ -32,6 +33,58 @@ export default function App() {
   const [editingDraft, setEditingDraft] = useState<any | null>(null);
   const [isSubmitCollapsed, setIsSubmitCollapsed] = useState(window.innerWidth < 768);
   const [isHistoryCollapsed, setIsHistoryCollapsed] = useState(window.innerWidth < 768);
+  const [expandedWeeks, setExpandedWeeks] = useState<Record<string, boolean>>({});
+
+  // Group submissions by week for the folder-style PWA performance optimization
+  const groupSubmissionsByWeek = (subs: any[]) => {
+    const groups: Record<string, { weekKey: string; rangeText: string; submissions: any[] }> = {};
+    
+    subs.forEach(s => {
+      const d = new Date(s.submitted_date);
+      const start = startOfWeek(d, { weekStartsOn: 1 });
+      const weekKey = format(start, 'yyyy-MM-dd');
+      
+      if (!groups[weekKey]) {
+        const end = endOfWeek(d, { weekStartsOn: 1 });
+        const startDay = format(start, 'd');
+        const endDay = format(end, 'd');
+        const startMonth = format(start, 'MMM');
+        const endMonth = format(end, 'MMM');
+        const startYear = format(start, 'yyyy');
+        
+        const getOrdinalSuffix = (day: number) => {
+          if (day > 3 && day < 21) return 'th';
+          switch (day % 10) {
+            case 1:  return "st";
+            case 2:  return "nd";
+            case 3:  return "rd";
+            default: return "th";
+          }
+        };
+        
+        const startDayStr = `${startDay}${getOrdinalSuffix(parseInt(startDay))}`;
+        const endDayStr = `${endDay}${getOrdinalSuffix(parseInt(endDay))}`;
+        
+        let rangeText = '';
+        if (startMonth === endMonth) {
+          rangeText = `Week ${startDayStr} – ${endDayStr} ${startMonth}, ${startYear}`;
+        } else {
+          rangeText = `Week ${startDayStr} ${startMonth} – ${endDayStr} ${endMonth}, ${startYear}`;
+        }
+        
+        groups[weekKey] = {
+          weekKey,
+          rangeText,
+          submissions: []
+        };
+      }
+      
+      groups[weekKey].submissions.push(s);
+    });
+    
+    // Sort weeks in descending order so the latest week is first
+    return Object.values(groups).sort((a, b) => b.weekKey.localeCompare(a.weekKey));
+  };
 
   const [activeTab, setActiveTab] = useState<string>('daily');
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
@@ -68,6 +121,16 @@ export default function App() {
       localStorage.setItem('theme', pTheme);
     }
   }, [profile?.preferred_theme]);
+
+  // Ensure administrators are always routed to a valid admin tab and never stuck on a blank student tab
+  useEffect(() => {
+    if (profile?.community_role === 'admin') {
+      const validAdminTabs = ['overview', 'students', 'submissions', 'invite', 'broadcast', 'moderation'];
+      if (!validAdminTabs.includes(activeTab)) {
+        setActiveTab('overview');
+      }
+    }
+  }, [profile, activeTab]);
 
   // Sync PWA web push subscription dynamically if permissions exist
   useEffect(() => {
@@ -351,7 +414,7 @@ export default function App() {
                   <div className="flex flex-col">
                     <span className={`text-[10px] font-bold uppercase tracking-widest ${theme === 'dark' ? 'text-violet-400/60' : 'text-violet-600/60'}`}>Weekly Goal</span>
                     <span className={`text-lg font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-                      {Math.floor(weeklyTotalMinutes / 60)}h <span className={`${theme === 'dark' ? 'text-white/20' : 'text-slate-300'}`}>/ 10h</span>
+                      {Math.floor(weeklyTotalMinutes / 60)}h <span className={`${theme === 'dark' ? 'text-white/20' : 'text-slate-300'}`}>/ {profile?.weekly_hour_goal || 10}h</span>
                     </span>
                   </div>
                   <div className={`w-px h-10 ${theme === 'dark' ? 'bg-white/10' : 'bg-slate-200'}`} />
@@ -438,7 +501,7 @@ export default function App() {
                 <motion.div 
                   initial={false}
                   animate={{ height: isHistoryCollapsed && window.innerWidth < 768 ? 0 : 'auto', opacity: isHistoryCollapsed && window.innerWidth < 768 ? 0 : 1 }}
-                  className="space-y-3 overflow-hidden"
+                  className="space-y-4 overflow-hidden"
                 >
                   {submissions.length === 0 ? (
                     <div className={`p-12 border-2 border-dashed rounded-2xl text-center ${theme === 'dark' ? 'border-white/5' : 'border-slate-100'}`}>
@@ -446,75 +509,123 @@ export default function App() {
                       <p className={`font-medium text-sm ${theme === 'dark' ? 'text-white/20' : 'text-slate-400'}`}>No work documented yet. Start now.</p>
                     </div>
                   ) : (
-                    submissions.map((s) => (
-                      <motion.div
-                        key={s.id}
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        onClick={() => setSelectedSubForModal(s)}
-                        className={`backdrop-blur-sm p-5 rounded-2xl border shadow-sm transition-all flex flex-col gap-4 group cursor-pointer ${theme === 'dark' ? 'bg-white/5 border-white/10 hover:border-violet-500/50' : 'bg-white border-slate-200 hover:border-violet-300'}`}
-                      >
-                        <div className="flex items-center justify-between w-full">
-                          <div className="flex items-center gap-4">
-                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${theme === 'dark' ? 'bg-violet-500/10 text-violet-400 group-hover:bg-violet-600 group-hover:text-white' : 'bg-violet-50 text-violet-600 group-hover:bg-violet-100'}`}>
-                              <Clock size={24} />
-                            </div>
-                            <div>
-                              <h4 className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{s.task_completed}</h4>
-                              <div className={`flex items-center gap-2 text-xs ${theme === 'dark' ? 'text-white/40' : 'text-slate-500'}`}>
-                                <span>{format(new Date(s.submitted_date), 'MMM d, yyyy')}</span>
-                                <span>•</span>
-                                <span className="font-bold text-violet-400">{s.time_spent}m</span>
+                    groupSubmissionsByWeek(submissions).map((group) => {
+                      const isExpanded = expandedWeeks[group.weekKey] || false;
+                      const totalTime = group.submissions.reduce((acc, current) => acc + current.time_spent, 0);
+                      const displayHours = (totalTime / 60).toFixed(1);
+                      
+                      return (
+                        <div key={group.weekKey} className="space-y-2 select-none">
+                          {/* Folder Accordion Trigger */}
+                          <div 
+                            onClick={() => setExpandedWeeks(prev => ({ ...prev, [group.weekKey]: !isExpanded }))}
+                            className={`flex items-center justify-between p-4 rounded-3xl border cursor-pointer transition-all ${
+                              theme === 'dark' 
+                                ? 'bg-white/5 border-white/10 hover:border-violet-500/50 hover:bg-white/10 text-white' 
+                                : 'bg-white border-slate-200 hover:border-violet-300 hover:bg-slate-50 text-slate-900'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className={`p-2 rounded-xl shrink-0 ${theme === 'dark' ? 'bg-violet-500/10 text-violet-400' : 'bg-violet-50 text-violet-600'}`}>
+                                {isExpanded ? <FolderOpen size={20} /> : <Folder size={20} />}
+                              </div>
+                              <div>
+                                <h4 className="font-bold text-sm md:text-md">{group.rangeText}</h4>
+                                <p className={`text-[10px] ${theme === 'dark' ? 'text-white/40' : 'text-slate-500'}`}>
+                                  {group.submissions.length} submission{group.submissions.length !== 1 ? 's' : ''} • {displayHours} Focus Hours
+                                </p>
                               </div>
                             </div>
+                            <div className="flex items-center gap-2">
+                              <motion.div animate={{ rotate: isExpanded ? 180 : 0 }}>
+                                <ChevronDown size={18} className={theme === 'dark' ? 'text-white/40' : 'text-slate-400'} />
+                              </motion.div>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-3">
-                            {s.is_draft && (
-                              <div className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase border ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white/40' : 'bg-slate-100 border-slate-200 text-slate-400'}`}>
-                                Draft
-                              </div>
-                            )}
-                            {s.review && (
-                              <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-black uppercase border ${
-                                s.review.status === 'excellent' ? 'bg-amber-500/10 border-amber-500/20 text-amber-500' :
-                                s.review.status === 'reviewed' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' :
-                                s.review.status === 'flagged' ? 'bg-rose-500/10 border-rose-500/20 text-rose-500' :
-                                'bg-slate-500/10 border-slate-500/20 text-slate-500'
-                              }`}>
-                                {s.review.status === 'excellent' && <Star size={10} />}
-                                {s.review.status === 'reviewed' && <CheckCircle2 size={10} />}
-                                {s.review.status === 'flagged' && <AlertCircle size={10} />}
-                                {s.review.status}
-                              </div>
-                            )}
-                            {s.proof_url && (
-                              <div
-                                className={`p-2 rounded-lg transition-all ${theme === 'dark' ? 'bg-white/5 text-white/40 hover:bg-violet-500/20 hover:text-violet-400' : 'bg-slate-100 text-slate-400 hover:bg-violet-50 hover:text-violet-600'}`}
-                              >
-                                <ChevronRight size={20} />
-                              </div>
-                            )}
-                          </div>
-                        </div>
 
-                        {/* Direct Instructor Feedback Snippet */}
-                        {s.review?.admin_notes && (
-                          <div className={`p-3 rounded-xl border flex flex-col gap-1 text-xs transition-colors ${
-                            theme === 'dark' 
-                              ? 'bg-violet-500/5 border-violet-500/10 text-violet-200/80 group-hover:border-violet-500/30' 
-                              : 'bg-violet-50/50 border-violet-100 text-[#4c445c] group-hover:border-violet-200'
-                          }`}>
-                            <div className="flex items-center gap-1.5 font-bold uppercase tracking-wider text-[10px] text-violet-400">
-                              <MessageSquare size={12} className="shrink-0 text-violet-400" />
-                              <span>Instructor Feedback</span>
-                            </div>
-                            <p className="line-clamp-2 italic leading-relaxed font-semibold">
-                              "{s.review.admin_notes}"
-                            </p>
-                          </div>
-                        )}
-                      </motion.div>
-                    ))
+                          {/* Defer loading submission details until a user opens a specific weekly folder */}
+                          {isExpanded && (
+                            <motion.div 
+                              initial={{ opacity: 0, y: -5 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="pl-4 md:pl-6 space-y-3 pt-1 border-l border-dashed border-violet-500/20"
+                            >
+                              {group.submissions.map((s) => (
+                                <motion.div
+                                  key={s.id}
+                                  initial={{ opacity: 0, x: -5 }}
+                                  animate={{ opacity: 1, x: 0 }}
+                                  onClick={() => setSelectedSubForModal(s)}
+                                  className={`backdrop-blur-sm p-4 rounded-xl border shadow-sm transition-all flex flex-col gap-3 group cursor-pointer ${
+                                    theme === 'dark' 
+                                      ? 'bg-white/[0.02] border-white/5 hover:border-violet-500/30' 
+                                      : 'bg-white border-slate-100 hover:border-violet-200'
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-between w-full">
+                                    <div className="flex items-center gap-3">
+                                      <div className={`w-9 h-9 rounded-lg flex items-center justify-center transition-colors ${
+                                        theme === 'dark' ? 'bg-violet-500/5 text-violet-400' : 'bg-violet-50 text-violet-600'
+                                      }`}>
+                                        <Clock size={18} />
+                                      </div>
+                                      <div>
+                                        <h4 className={`font-bold text-xs md:text-sm ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{s.task_completed}</h4>
+                                        <div className={`flex items-center gap-2 text-[10px] ${theme === 'dark' ? 'text-white/40' : 'text-slate-500'}`}>
+                                          <span>{format(new Date(s.submitted_date), 'MMM d, yyyy')}</span>
+                                          <span>•</span>
+                                          <span className="font-bold text-violet-400">{s.time_spent}m</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      {s.is_draft && (
+                                        <div className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase border ${
+                                          theme === 'dark' ? 'bg-white/5 border-white/10 text-white/40' : 'bg-slate-100 border-slate-200 text-slate-400'
+                                        }`}>
+                                          Draft
+                                        </div>
+                                      )}
+                                      {s.review && (
+                                        <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-black uppercase border ${
+                                          s.review.status === 'excellent' ? 'bg-amber-500/10 border-amber-500/20 text-amber-500' :
+                                          s.review.status === 'reviewed' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' :
+                                          s.review.status === 'flagged' ? 'bg-rose-500/10 border-rose-500/20 text-rose-500' :
+                                          'bg-slate-500/10 border-slate-500/20 text-slate-500'
+                                        }`}>
+                                          {s.review.status === 'excellent' && <Star size={8} />}
+                                          {s.review.status === 'reviewed' && <CheckCircle2 size={8} />}
+                                          {s.review.status === 'flagged' && <AlertCircle size={8} />}
+                                          {s.review.status}
+                                        </div>
+                                      )}
+                                      <ChevronRight size={14} className={theme === 'dark' ? 'text-white/20' : 'text-slate-300'} />
+                                    </div>
+                                  </div>
+
+                                  {/* Direct Instructor Feedback Snippet */}
+                                  {s.review?.admin_notes && (
+                                    <div className={`p-2.5 rounded-lg border flex flex-col gap-0.5 text-[11px] transition-colors ${
+                                      theme === 'dark' 
+                                        ? 'bg-violet-500/5 border-violet-500/10 text-violet-200/80' 
+                                        : 'bg-violet-50/50 border-violet-100 text-[#4c445c]'
+                                    }`}>
+                                      <div className="flex items-center gap-1 font-bold uppercase tracking-wider text-[9px] text-violet-400">
+                                        <MessageSquare size={10} className="shrink-0 text-violet-400" />
+                                        <span>Instructor Feedback</span>
+                                      </div>
+                                      <p className="line-clamp-2 italic leading-relaxed font-semibold">
+                                        "{s.review.admin_notes}"
+                                      </p>
+                                    </div>
+                                  )}
+                                </motion.div>
+                              ))}
+                            </motion.div>
+                          )}
+                        </div>
+                      );
+                    })
                   )}
                 </motion.div>
               </section>

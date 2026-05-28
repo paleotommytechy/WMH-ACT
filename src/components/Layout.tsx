@@ -104,7 +104,7 @@ export const Layout: React.FC<LayoutProps> = ({
       {!hideNav && (
         <nav className={`${theme === 'dark' ? 'bg-[#130722]/80 border-violet-900/50' : 'bg-[#130722]/95 border-violet-900/30'} backdrop-blur-md border-b sticky top-0 z-50`}>
           <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
-            <div className="flex items-center cursor-pointer" onClick={() => onTabChange?.('daily')}>
+            <div className="flex items-center cursor-pointer" onClick={() => onTabChange?.(profile?.community_role === 'admin' ? 'overview' : 'daily')}>
               <img 
                 src={theme === 'light' 
                   ? "https://jnvpkyvtajegjuqnluzp.supabase.co/storage/v1/object/public/Wilson%20Mastery%20Hub%20images/logo-dark-bg.png" 

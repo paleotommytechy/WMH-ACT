@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Home, Calendar, Plus, User, Settings, Users, FileText, UserPlus, Send, ShieldAlert } from 'lucide-react';
+import { Home, Calendar, Plus, User, Settings, Users, FileText, UserPlus, Send, ShieldAlert, LayoutDashboard } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface BottomNavProps {
@@ -83,9 +83,16 @@ export const BottomNav: React.FC<BottomNavProps> = ({
           /* Admin Bottom Nav */
           <>
             <NavButton 
+              icon={<LayoutDashboard size={24} />} 
+              label="Overview" 
+              active={activeTab === 'overview'} 
+              onClick={() => onTabChange('overview')}
+              isDark={isDark}
+            />
+            <NavButton 
               icon={<Users size={24} />} 
               label="Students" 
-              active={activeTab === 'students' || activeTab === 'overview'} 
+              active={activeTab === 'students'} 
               onClick={() => onTabChange('students')}
               isDark={isDark}
             />
