@@ -9,6 +9,7 @@ import { ConsistencyTracker } from './components/ConsistencyTracker';
 import { WeeklyReviewSystem } from './components/WeeklyReviewSystem';
 import { PublicGenerator } from './components/PublicGenerator';
 import { AdminDashboard } from './components/AdminDashboard';
+import { ChatSystem } from './components/ChatSystem';
 import { ProfileSetup } from './components/ProfileSetup';
 import { ProfileEditor } from './components/ProfileEditor';
 import { SettingsView } from './components/SettingsView';
@@ -16,7 +17,7 @@ import { SubmissionDetailModal } from './components/SubmissionDetailModal';
 import { 
   Loader2, Plus, Calendar, Clock, ChevronRight, ChevronDown, TrendingUp, 
   Shield, User as UserIcon, Star, CheckCircle2, AlertCircle, MessageSquare,
-  Folder, FolderOpen
+  Folder, FolderOpen, FileText
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format, startOfWeek, endOfWeek, isSameWeek } from 'date-fns';
@@ -125,7 +126,7 @@ export default function App() {
   // Ensure administrators are always routed to a valid admin tab and never stuck on a blank student tab
   useEffect(() => {
     if (profile?.community_role === 'admin') {
-      const validAdminTabs = ['overview', 'students', 'submissions', 'invite', 'broadcast', 'moderation'];
+      const validAdminTabs = ['overview', 'students', 'submissions', 'invite', 'broadcast', 'moderation', 'chat'];
       if (!validAdminTabs.includes(activeTab)) {
         setActiveTab('overview');
       }
@@ -364,6 +365,168 @@ export default function App() {
           toggleTheme={toggleTheme}
           onBack={() => setActiveTab('daily')}
         />
+      ) : activeTab === 'chat' ? (
+        <div className="w-full h-[calc(100vh-8.5rem)] md:h-[720px] flex flex-col">
+          <ChatSystem 
+            theme={theme} 
+            currentUserId={session.user.id} 
+            userRole={profile?.community_role || 'student'} 
+            profile={profile}
+          />
+        </div>
+      ) : activeTab === 'submissions' && profile?.community_role !== 'admin' ? (
+        <div className="space-y-6 pt-2">
+          <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div>
+              <h1 className={`text-4xl font-black tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                Past <span className="text-violet-400">Submissions</span>
+              </h1>
+              <p className={`${theme === 'dark' ? 'text-violet-200/60' : 'text-slate-500'} font-medium`}>
+                Your complete record of focused, deep work output.
+              </p>
+            </div>
+            
+            <div className={`flex backdrop-blur-md p-2 rounded-2xl border shadow-xl gap-4 px-6 items-center shrink-0 ${theme === 'dark' ? 'bg-white/5 border-white/10' : 'bg-slate-100 border-slate-200'}`}>
+              <div className="flex flex-col">
+                <span className={`text-[10px] font-bold uppercase tracking-widest ${theme === 'dark' ? 'text-violet-400/60' : 'text-violet-600/60'}`}>Hours Logged</span>
+                <span className={`text-lg font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                  {(submissions.reduce((acc, s) => acc + s.time_spent, 0) / 60).toFixed(1)}h
+                </span>
+              </div>
+              <div className={`w-px h-10 ${theme === 'dark' ? 'bg-white/10' : 'bg-slate-200'}`} />
+              <div className="flex flex-col">
+                <span className={`text-[10px] font-bold uppercase tracking-widest ${theme === 'dark' ? 'text-violet-400/60' : 'text-violet-600/60'}`}>Total Logged</span>
+                <span className="text-lg font-black text-violet-400">{submissions.length}</span>
+              </div>
+            </div>
+          </header>
+
+          <div className="max-w-4xl py-2">
+            <div className="space-y-4">
+              {submissions.length === 0 ? (
+                <div className={`p-12 border-2 border-dashed rounded-2xl text-center ${theme === 'dark' ? 'border-white/5' : 'border-slate-100'}`}>
+                  <Plus className={`mx-auto mb-2 ${theme === 'dark' ? 'text-white/10' : 'text-slate-200'}`} size={32} />
+                  <p className={`font-medium text-sm ${theme === 'dark' ? 'text-white/20' : 'text-slate-400'}`}>No work documented yet.</p>
+                </div>
+              ) : (
+                groupSubmissionsByWeek(submissions).map((group) => {
+                  const isExpanded = expandedWeeks[group.weekKey] !== false;
+                  const totalTime = group.submissions.reduce((acc, current) => acc + current.time_spent, 0);
+                  const displayHours = (totalTime / 60).toFixed(1);
+                  
+                  return (
+                    <div key={group.weekKey} className="space-y-2 select-none">
+                      <div 
+                        onClick={() => setExpandedWeeks(prev => ({ ...prev, [group.weekKey]: !isExpanded }))}
+                        className={`flex items-center justify-between p-4 rounded-3xl border cursor-pointer transition-all ${
+                          theme === 'dark' 
+                            ? 'bg-white/5 border-white/10 hover:border-violet-500/50 hover:bg-white/10 text-white' 
+                            : 'bg-white border-slate-200 hover:border-violet-300 hover:bg-slate-50 text-slate-900'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`p-2 rounded-xl shrink-0 ${theme === 'dark' ? 'bg-violet-500/10 text-violet-400' : 'bg-violet-50 text-violet-600'}`}>
+                            {isExpanded ? <FolderOpen size={20} /> : <Folder size={20} />}
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-sm md:text-md">{group.rangeText}</h4>
+                            <p className={`text-[10px] ${theme === 'dark' ? 'text-white/40' : 'text-slate-500'}`}>
+                              {group.submissions.length} submission{group.submissions.length !== 1 ? 's' : ''} • {displayHours} Focus Hours
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <motion.div animate={{ rotate: isExpanded ? 180 : 0 }}>
+                            <ChevronDown size={18} className={theme === 'dark' ? 'text-white/40' : 'text-slate-400'} />
+                          </motion.div>
+                        </div>
+                      </div>
+
+                      {isExpanded && (
+                        <motion.div 
+                          initial={{ opacity: 0, y: -5 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="pl-4 md:pl-6 space-y-3 pt-1 border-l border-dashed border-violet-500/20"
+                        >
+                          {group.submissions.map((s) => (
+                            <motion.div
+                              key={s.id}
+                              initial={{ opacity: 0, x: -5 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              onClick={() => setSelectedSubForModal(s)}
+                              className={`backdrop-blur-sm p-4 rounded-xl border shadow-sm transition-all flex flex-col gap-3 group cursor-pointer ${
+                                theme === 'dark' 
+                                  ? 'bg-white/[0.02] border-white/5 hover:border-violet-500/30' 
+                                  : 'bg-white border-slate-100 hover:border-violet-200'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between w-full">
+                                <div className="flex items-center gap-3">
+                                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center transition-colors ${
+                                    theme === 'dark' ? 'bg-violet-500/5 text-violet-400' : 'bg-violet-50 text-violet-600'
+                                  }`}>
+                                    <Clock size={18} />
+                                  </div>
+                                  <div>
+                                    <h4 className={`font-bold text-xs md:text-sm ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{s.task_completed}</h4>
+                                    <div className={`flex items-center gap-2 text-[10px] ${theme === 'dark' ? 'text-white/40' : 'text-slate-500'}`}>
+                                      <span>{format(new Date(s.submitted_date), 'MMM d, yyyy')}</span>
+                                      <span>•</span>
+                                      <span className="font-bold text-violet-400">{s.time_spent}m</span>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  {s.is_draft && (
+                                    <div className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase border ${
+                                      theme === 'dark' ? 'bg-white/5 border-white/10 text-white/40' : 'bg-slate-100 border-slate-200 text-slate-400'
+                                    }`}>
+                                      Draft
+                                    </div>
+                                  )}
+                                  {s.review && (
+                                    <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-black uppercase border ${
+                                      s.review.status === 'excellent' ? 'bg-amber-500/10 border-amber-500/20 text-amber-500' :
+                                      s.review.status === 'reviewed' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' :
+                                      s.review.status === 'flagged' ? 'bg-rose-500/10 border-rose-500/20 text-rose-500' :
+                                      'bg-slate-500/10 border-slate-500/20 text-slate-500'
+                                    }`}>
+                                      {s.review.status === 'excellent' && <Star size={8} />}
+                                      {s.review.status === 'reviewed' && <CheckCircle2 size={8} />}
+                                      {s.review.status === 'flagged' && <AlertCircle size={8} />}
+                                      {s.review.status}
+                                    </div>
+                                  )}
+                                  <ChevronRight size={14} className={theme === 'dark' ? 'text-white/20' : 'text-slate-300'} />
+                                </div>
+                              </div>
+
+                              {s.review?.admin_notes && (
+                                <div className={`p-2.5 rounded-lg border flex flex-col gap-0.5 text-[11px] transition-colors ${
+                                  theme === 'dark' 
+                                    ? 'bg-violet-500/5 border-violet-500/10 text-violet-200/80' 
+                                    : 'bg-violet-50/50 border-violet-100 text-[#4c445c]'
+                                }`}>
+                                  <div className="flex items-center gap-1 font-bold uppercase tracking-wider text-[9px] text-violet-400">
+                                    <MessageSquare size={10} className="shrink-0 text-violet-400" />
+                                    <span>Instructor Feedback</span>
+                                  </div>
+                                  <p className="line-clamp-2 italic leading-relaxed font-semibold">
+                                    "{s.review.admin_notes}"
+                                  </p>
+                                </div>
+                              )}
+                            </motion.div>
+                          ))}
+                        </motion.div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
       ) : (
         <div className="space-y-10">
           {profile?.community_role !== 'admin' && (

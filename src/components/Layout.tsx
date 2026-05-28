@@ -32,6 +32,7 @@ export const Layout: React.FC<LayoutProps> = ({
 }) => {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
   const [hasUnreadAlertDismissed, setHasUnreadAlertDismissed] = useState(false);
 
   const handleLogout = async () => {
@@ -70,7 +71,32 @@ export const Layout: React.FC<LayoutProps> = ({
         }
       };
 
+      const fetchUnreadChat = async () => {
+        try {
+          const query = supabase
+            .from('chat_messages')
+            .select('*', { count: 'exact', head: true })
+            .eq('is_read', false)
+            .neq('sender_id', user.id);
+          
+          if (profile?.community_role !== 'admin') {
+            query.eq('student_id', user.id);
+          }
+          
+          const { count, error } = await query;
+          if (!error && count !== null) {
+            setUnreadChatCount(count);
+          } else if (error && (error.code === '42P01' || error.message?.includes('does not exist'))) {
+            // Simulator fallback index
+            setUnreadChatCount(1);
+          }
+        } catch (e) {
+          setUnreadChatCount(1);
+        }
+      };
+
       fetchUnread();
+      fetchUnreadChat();
 
       // Real-time subscription for new and updated notifications
       const channel = supabase
@@ -89,11 +115,24 @@ export const Layout: React.FC<LayoutProps> = ({
         })
         .subscribe();
 
+      // Real-time subscription for chat messages unread sync
+      const chatChannel = supabase
+        .channel('chat-messages-layout-changes')
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'chat_messages'
+        }, () => {
+          fetchUnreadChat();
+        })
+        .subscribe();
+
       return () => {
         supabase.removeChannel(channel);
+        supabase.removeChannel(chatChannel);
       };
     }
-  }, [user]);
+  }, [user, profile?.community_role]);
 
   const handleCloseNotifications = () => {
     setIsNotificationsOpen(false);
@@ -180,7 +219,11 @@ export const Layout: React.FC<LayoutProps> = ({
         </nav>
       )}
 
-      <main className={`max-w-5xl mx-auto px-4 w-full ${hideNav ? 'flex-1 flex flex-col justify-center py-12' : 'py-8 md:py-12 pb-24 md:pb-12'}`}>
+      <main className={
+        activeTab === 'chat'
+          ? `w-full flex-1 flex flex-col md:max-w-5xl md:mx-auto md:px-4 md:py-8 pb-18 md:pb-12`
+          : `max-w-5xl mx-auto px-4 w-full ${hideNav ? 'flex-1 flex flex-col justify-center py-12' : 'py-8 md:py-12 pb-24 md:pb-12'}`
+      }>
         {children}
       </main>
 
@@ -190,6 +233,7 @@ export const Layout: React.FC<LayoutProps> = ({
           onTabChange={onTabChange as any}
           onAddClick={onAddClick || (() => {})}
           unreadNotifications={unreadCount}
+          unreadChatCount={unreadChatCount}
           theme={theme!}
           role={profile?.community_role || 'student'}
         />

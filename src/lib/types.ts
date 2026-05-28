@@ -120,6 +120,7 @@ export interface Submission {
   is_draft: boolean;
   created_at: string;
   review?: SubmissionReview;
+  student?: Profile;
 }
 
 export interface SubmissionReview {
