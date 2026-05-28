@@ -130,7 +130,9 @@ export const SubmissionDetailModal: React.FC<SubmissionDetailModalProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className={`p-5 rounded-2xl border ${theme === 'dark' ? 'bg-white/5 border-white/5' : 'bg-slate-50 border-slate-100'}`}>
                    <span className="text-[10px] font-black uppercase text-violet-400 tracking-widest block mb-1">Focus Task</span>
-                   <h4 className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{submission.task_completed}</h4>
+                   <div className={`text-md font-bold markdown-body ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                     <Markdown>{submission.task_completed}</Markdown>
+                   </div>
                 </div>
                 <div className={`p-5 rounded-2xl border ${theme === 'dark' ? 'bg-white/5 border-white/5' : 'bg-slate-50 border-slate-100'}`}>
                    <span className="text-[10px] font-black uppercase text-violet-400 tracking-widest block mb-1">Time Invested</span>
@@ -143,9 +145,9 @@ export const SubmissionDetailModal: React.FC<SubmissionDetailModalProps> = ({
 
               <div className={`p-6 rounded-2xl border ${theme === 'dark' ? 'bg-white/5 border-white/5' : 'bg-slate-50 border-slate-100'}`}>
                  <span className="text-[10px] font-black uppercase text-violet-400 tracking-widest block mb-2">Personal Reflection</span>
-                 <p className={`text-sm font-medium italic leading-relaxed ${theme === 'dark' ? 'text-white/70' : 'text-slate-700'}`}>
-                   "{submission.reflection}"
-                 </p>
+                 <div className={`text-sm font-medium leading-relaxed markdown-body ${theme === 'dark' ? 'text-white/70' : 'text-slate-700'}`}>
+                   <Markdown>{submission.reflection}</Markdown>
+                 </div>
               </div>
 
               {/* Proof Preview */}

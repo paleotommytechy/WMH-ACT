@@ -1193,118 +1193,150 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark', 
 
       {/* Submission Review Modal */}
       {selectedSubmission && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setSelectedSubmission(null)}
+        >
            <motion.div 
              initial={{ opacity: 0 }}
              animate={{ opacity: 1 }}
-             className="absolute inset-0 bg-black/60 backdrop-blur-md"
-             onClick={() => setSelectedSubmission(null)}
+             className="absolute inset-0 bg-black/60 backdrop-blur-md pointer-events-none"
            />
            <motion.div 
              initial={{ scale: 0.9, opacity: 0, y: 20 }}
              animate={{ scale: 1, opacity: 1, y: 0 }}
-             className={`relative w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden ${theme === 'dark' ? 'bg-[#1a1625] border border-white/10' : 'bg-white'}`}
+             onClick={(e) => e.stopPropagation()}
+             className={`relative w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden border cursor-default flex flex-col max-h-[90vh] md:max-h-[85vh] ${
+               theme === 'dark' ? 'bg-[#1a1625] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'
+             }`}
            >
-             <div className="p-8 space-y-6">
-                <div className="flex justify-between items-start">
-                   <div>
-                     <h3 className={`text-2xl font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Review Submission</h3>
-                     <p className={`text-sm ${theme === 'dark' ? 'text-white/40' : 'text-slate-500'}`}>Validating documentation for accountability.</p>
-                   </div>
-                   <button onClick={() => setSelectedSubmission(null)} className="p-2 hover:bg-white/10 rounded-xl">
-                      <X size={24} className="text-white/30" />
-                   </button>
+             {/* Modal Header (Fixed) */}
+             <div className={`p-6 md:p-8 pb-4 flex justify-between items-start shrink-0 border-b select-none ${
+               theme === 'dark' ? 'border-white/5 bg-[#1a1625]' : 'border-slate-100 bg-white'
+             }`}>
+                <div>
+                  <h3 className={`text-2xl font-black ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>Review Submission</h3>
+                  <p className={`text-xs mt-1 ${theme === 'dark' ? 'text-white/40' : 'text-slate-500'}`}>Validating documentation for accountability.</p>
                 </div>
+                <button 
+                  onClick={() => setSelectedSubmission(null)} 
+                  className={`p-2 rounded-xl transition-all hover:scale-105 active:scale-95 cursor-pointer ${theme === 'dark' ? 'hover:bg-white/10 text-white/30 hover:text-white' : 'hover:bg-slate-100 text-slate-400 hover:text-slate-900'}`}
+                >
+                   <X size={24} />
+                </button>
+             </div>
 
-                <div className={`p-6 rounded-2xl border ${theme === 'dark' ? 'bg-black/20 border-white/5' : 'bg-slate-50'}`}>
-                   <div className="flex justify-between mb-4">
-                      <span className="text-[10px] font-black uppercase text-violet-400 tracking-widest">Task Detail</span>
-                      <span className="text-[10px] font-bold text-white/30 uppercase">{format(new Date(selectedSubmission.submitted_date), 'MMMM d, yyyy')}</span>
-                   </div>
-                   <h4 className={`text-lg font-bold mb-2 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{selectedSubmission.task_completed}</h4>
-                   <p className={`text-sm font-medium italic ${theme === 'dark' ? 'text-white/60' : 'text-slate-600'}`}>"{selectedSubmission.reflection}"</p>
-                   
-                   {selectedSubmission.proof_url && (
-                     <div className="mt-4 space-y-3">
-                       <span className="text-[10px] font-black uppercase text-violet-400 tracking-widest block">Artifact Proof</span>
-                       {selectedSubmission.proof_url.match(/\.(jpeg|jpg|gif|png|webp)$/) || selectedSubmission.proof_url.includes('supabase.co/storage/v1/object/public/proofs/') ? (
-                         <div className="relative group overflow-hidden rounded-2xl border border-white/10 aspect-video bg-black/20">
-                           <img 
-                             src={selectedSubmission.proof_url} 
-                             alt="Proof" 
-                             className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-500"
-                           />
-                           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                             <button 
-                               onClick={() => setShowLightbox(selectedSubmission!.proof_url)}
-                               className="bg-white text-black px-4 py-2 rounded-xl font-bold flex items-center gap-2 shadow-xl scale-95 group-hover:scale-100 transition-transform"
-                               type="button"
-                             >
-                               <Maximize2 size={16} />
-                               Full View
-                             </button>
-                           </div>
-                         </div>
-                       ) : (
-                         <a 
-                           href={selectedSubmission.proof_url} 
-                           target="_blank" 
-                           rel="noreferrer"
-                           className={`flex items-center justify-between p-4 rounded-xl border transition-all ${
-                             theme === 'dark' ? 'bg-white/5 border-white/10 hover:border-violet-500/50 text-white' : 'bg-slate-50 border-slate-200 hover:border-violet-300'
+             {/* Modal Body (Scrollable container) */}
+             <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-6">
+                 <div className={`p-6 rounded-2xl border ${theme === 'dark' ? 'bg-black/20 border-white/5' : 'bg-slate-50'}`}>
+                    <div className="flex justify-between mb-4">
+                       <span className="text-[10px] font-black uppercase text-violet-400 tracking-widest">Task Detail</span>
+                       <span className="text-[10px] font-bold text-white/30 uppercase">{format(new Date(selectedSubmission.submitted_date), 'MMMM d, yyyy')}</span>
+                    </div>
+                    <div className={`text-lg font-bold mb-2 markdown-body ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                      <Markdown>{selectedSubmission.task_completed}</Markdown>
+                    </div>
+                    <div className={`text-sm font-medium italic markdown-body ${theme === 'dark' ? 'text-white/60' : 'text-slate-600'}`}>
+                      <Markdown>{selectedSubmission.reflection}</Markdown>
+                    </div>
+                    
+                    {selectedSubmission.proof_url && (
+                      <div className="mt-4 space-y-3">
+                        <span className="text-[10px] font-black uppercase text-violet-400 tracking-widest block">Artifact Proof</span>
+                        {selectedSubmission.proof_url.match(/\.(jpeg|jpg|gif|png|webp)$/) || selectedSubmission.proof_url.includes('supabase.co/storage/v1/object/public/proofs/') ? (
+                          <div className="relative group overflow-hidden rounded-2xl border border-white/10 aspect-video bg-black/20">
+                            <img 
+                              src={selectedSubmission.proof_url} 
+                              alt="Proof" 
+                              className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-500"
+                            />
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                              <button 
+                                onClick={() => setShowLightbox(selectedSubmission!.proof_url)}
+                                className="bg-white text-black px-4 py-2 rounded-xl font-bold flex items-center gap-2 shadow-xl scale-95 group-hover:scale-100 transition-transform"
+                                type="button"
+                              >
+                                <Maximize2 size={16} />
+                                Full View
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <a 
+                            href={selectedSubmission.proof_url} 
+                            target="_blank" 
+                            rel="noreferrer"
+                            className={`flex items-center justify-between p-4 rounded-xl border transition-all ${
+                              theme === 'dark' ? 'bg-white/5 border-white/10 hover:border-violet-500/50 text-white' : 'bg-slate-50 border-slate-200 hover:border-violet-300'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 text-violet-400 font-bold hover:text-violet-300 transition-colors">
+                              <ExternalLink size={16} />
+                              View Proof Artifact (Link)
+                            </div>
+                            <Maximize2 size={16} className="opacity-40" />
+                          </a>
+                        )}
+                      </div>
+                    )}
+                 </div>
+
+                 <div className="space-y-4">
+                    <div>
+                       <label className="text-[10px] font-black uppercase text-white/30 mb-2 block">Admin Feedback</label>
+                       <textarea 
+                         value={reviewForm.notes}
+                         onChange={(e) => setReviewForm({...reviewForm, notes: e.target.value})}
+                         placeholder="Add constructive feedback or recognition..."
+                         className={`w-full px-6 py-4 rounded-2xl border outline-none font-medium resize-none ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white focus:border-violet-500' : 'bg-slate-50 border-slate-200'}`}
+                       />
+                        <p className={`text-[10px] mt-2 font-semibold leading-relaxed ${theme === 'dark' ? 'text-violet-400/60' : 'text-violet-600/70'}`}>
+                          <strong>Guideline:</strong> User should be able to click on notification to see full context and immediately they enter the app they should be a pop up telling them to check their notification for information, the pop up should always exist unless they clear their notification.
+                        </p>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-3">
+                       {[
+                         { id: 'reviewed', label: 'Verified', icon: CheckCircle2, color: 'hover:bg-emerald-500 hover:border-emerald-500' },
+                         { id: 'excellent', label: 'Superior', icon: Star, color: 'hover:bg-amber-500 hover:border-amber-500' },
+                         { id: 'flagged', label: 'Questionable', icon: AlertCircle, color: 'hover:bg-rose-500 hover:border-rose-500' },
+                       ].map((type) => (
+                         <button
+                           key={type.id}
+                           onClick={() => setReviewForm({...reviewForm, status: type.id as any})}
+                           className={`flex flex-col items-center gap-2 p-4 rounded-2xl border transition-all ${
+                             reviewForm.status === type.id 
+                               ? type.id === 'reviewed' ? 'bg-emerald-500 text-white border-emerald-500' : 
+                                  type.id === 'excellent' ? 'bg-amber-500 text-white border-amber-500' : 'bg-rose-500 text-white border-rose-500'
+                               : theme === 'dark' ? 'bg-white/5 border-white/10 text-white/40 ' + type.color : 'bg-slate-50'
                            }`}
                          >
-                           <div className="flex items-center gap-2 text-violet-400 font-bold hover:text-violet-300 transition-colors">
-                             <ExternalLink size={16} />
-                             View Proof Artifact (Link)
-                           </div>
-                           <Maximize2 size={16} className="opacity-40" />
-                         </a>
-                       )}
-                     </div>
-                   )}
-                </div>
+                           <type.icon size={20} />
+                           <span className="text-[10px] font-black uppercase">{type.label}</span>
+                         </button>
+                       ))}
+                    </div>
+                 </div>
+             </div>
 
-                <div className="space-y-4">
-                   <div>
-                      <label className="text-[10px] font-black uppercase text-white/30 mb-2 block">Admin Feedback</label>
-                      <textarea 
-                        value={reviewForm.notes}
-                        onChange={(e) => setReviewForm({...reviewForm, notes: e.target.value})}
-                        placeholder="Add constructive feedback or recognition..."
-                        className={`w-full px-6 py-4 rounded-2xl border outline-none font-medium resize-none ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white focus:border-violet-500' : 'bg-slate-50 border-slate-200'}`}
-                      />
-                       <p className={`text-[10px] mt-2 font-semibold leading-relaxed ${theme === 'dark' ? 'text-violet-400/60' : 'text-violet-600/70'}`}>
-                         <strong>Guideline:</strong> User should be able to click on notification to see full context and immediately they enter the app they should be a pop up telling them to check their notification for information, the pop up should always exist unless they clear their notification.
-                       </p>
-                   </div>
-
-                   <div className="grid grid-cols-3 gap-3">
-                      {[
-                        { id: 'reviewed', label: 'Verified', icon: CheckCircle2, color: 'hover:bg-emerald-500 hover:border-emerald-500' },
-                        { id: 'excellent', label: 'Superior', icon: Star, color: 'hover:bg-amber-500 hover:border-amber-500' },
-                        { id: 'flagged', label: 'Questionable', icon: AlertCircle, color: 'hover:bg-rose-500 hover:border-rose-500' },
-                      ].map((type) => (
-                        <button
-                          key={type.id}
-                          onClick={() => setReviewForm({...reviewForm, status: type.id as any})}
-                          className={`flex flex-col items-center gap-2 p-4 rounded-2xl border transition-all ${
-                            reviewForm.status === type.id 
-                              ? type.id === 'reviewed' ? 'bg-emerald-500 text-white border-emerald-500' : 
-                                 type.id === 'excellent' ? 'bg-amber-500 text-white border-amber-500' : 'bg-rose-500 text-white border-rose-500'
-                              : theme === 'dark' ? 'bg-white/5 border-white/10 text-white/40 ' + type.color : 'bg-slate-50'
-                          }`}
-                        >
-                          <type.icon size={20} />
-                          <span className="text-[10px] font-black uppercase">{type.label}</span>
-                        </button>
-                      ))}
-                   </div>
-                </div>
-
+             {/* Modal Footer (Fixed Actions, with Dismissal Controls) */}
+             <div className={`p-6 md:p-8 pt-4 flex items-center gap-4 shrink-0 border-t ${
+               theme === 'dark' ? 'border-white/5 bg-[#1a1625]' : 'border-slate-100 bg-white'
+             }`}>
+                <button
+                  type="button"
+                  onClick={() => setSelectedSubmission(null)}
+                  className={`flex-1 py-4 border rounded-2xl font-black transition-all ${
+                    theme === 'dark' 
+                      ? 'border-white/10 hover:bg-white/5 text-white/60 hover:text-white' 
+                      : 'border-slate-200 hover:bg-slate-50 text-slate-500 hover:text-slate-900'
+                  }`}
+                >
+                  Cancel / Dismiss
+                </button>
                 <button 
                   onClick={handleReviewSubmission}
-                  className="w-full py-4 bg-violet-600 hover:bg-violet-700 text-white rounded-2xl font-black transition-all shadow-xl shadow-violet-600/20"
+                  className="flex-1 py-4 bg-violet-600 hover:bg-violet-700 text-white rounded-2xl font-black transition-all shadow-xl shadow-violet-600/20"
                 >
                   Confirm Review
                 </button>

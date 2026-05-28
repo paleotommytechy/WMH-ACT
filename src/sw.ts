@@ -7,6 +7,15 @@ declare let self: ServiceWorkerGlobalScope;
 
 precacheAndRoute(self.__WB_MANIFEST);
 
+// Force the service worker to immediately activate and begin controlling all pages
+self.addEventListener('install', () => {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(self.clients.claim());
+});
+
 // Handle push notifications
 self.addEventListener('push', (event) => {
   const data = event.data?.json() || {};

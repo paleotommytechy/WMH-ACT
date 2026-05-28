@@ -43,3 +43,33 @@
 a, button, [role="button"], select, input, textarea {
   touch-action: manipulation;
 }
+
+/* Markdown Support Styles */
+.markdown-body ul {
+  list-style-type: disc !important;
+  margin-left: 1.5rem !important;
+  margin-top: 0.5rem !important;
+  margin-bottom: 0.5rem !important;
+}
+.markdown-body ol {
+  list-style-type: decimal !important;
+  margin-left: 1.5rem !important;
+  margin-top: 0.5rem !important;
+  margin-bottom: 0.5rem !important;
+}
+.markdown-body li {
+  margin-bottom: 0.25rem !important;
+}
+.markdown-body p {
+  margin-bottom: 1rem !important;
+}
+.markdown-body p:last-child {
+  margin-bottom: 0 !important;
+}
+.markdown-body strong {
+  font-weight: 700 !important;
+}
+.markdown-body em {
+  font-style: italic !important;
+}
+
