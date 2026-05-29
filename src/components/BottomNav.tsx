@@ -36,7 +36,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
           <>
             <NavButton 
               icon={<Home size={20} />} 
-              label="Daily" 
+              label="Home" 
               active={activeTab === 'daily'} 
               onClick={() => onTabChange('daily')}
               isDark={isDark}
@@ -167,7 +167,24 @@ const NavButton: React.FC<NavButtonProps> = ({ icon, label, active, onClick, isD
     style={{ touchAction: 'manipulation' }}
   >
     <div className={`transition-colors duration-200 relative ${active ? 'text-violet-500' : isDark ? 'text-white/40' : 'text-slate-400'}`}>
-      {icon}
+      {badgeCount > 0 ? (
+        <motion.div
+          animate={{
+            scale: [1, 1.15, 1],
+            y: [0, -1.5, 0]
+          }}
+          transition={{
+            duration: 2,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+          className="flex items-center justify-center"
+        >
+          {icon}
+        </motion.div>
+      ) : (
+        icon
+      )}
       {badgeCount > 0 && (
         <span className="absolute -top-1.5 -right-2 bg-rose-500 text-white font-black text-[8px] px-1.5 py-0.5 rounded-full min-w-[16px] h-[16px] flex items-center justify-center border border-slate-900 shadow-md">
           {badgeCount > 9 ? '9+' : badgeCount}

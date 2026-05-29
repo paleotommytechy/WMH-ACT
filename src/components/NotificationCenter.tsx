@@ -16,10 +16,11 @@ interface NotificationCenterProps {
   theme: 'dark' | 'light';
   isOpen: boolean;
   onClose: () => void;
+  onRedirect?: (tab: string) => void;
 }
 
 export const NotificationCenter: React.FC<NotificationCenterProps> = ({ 
-  userId, theme, isOpen, onClose 
+  userId, theme, isOpen, onClose, onRedirect 
 }) => {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,10 +54,36 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
     }
   };
 
+  const getRedirectTab = (title: string, message: string): string | null => {
+    const content = (title + ' ' + message).toLowerCase();
+    
+    // Check for weekly focus goals, reviews, or consistency
+    if (content.includes('weekly') || content.includes('streak') || content.includes('consistency') || content.includes('hour goal') || content.includes('goal reached') || content.includes('focus goal') || content.includes('milestone')) {
+      return 'weekly';
+    }
+    
+    // Check for chat / messages / advisory
+    if (content.includes('chat') || content.includes('message') || content.includes('sender') || content.includes('advisor') || content.includes('dm') || content.includes('instructor text') || content.includes('texted') || content.includes('replied') || content.includes('circle') || content.includes('group')) {
+      return 'chat';
+    }
+    
+    // Check for submissions / reviews
+    if (content.includes('submission') || content.includes('review') || content.includes('reviewed') || content.includes('approved') || content.includes('rejected') || content.includes('focus log') || content.includes('verified') || content.includes('achievement')) {
+      return 'submissions';
+    }
+    
+    return null;
+  };
+
   const handleNotificationClick = async (n: AppNotification) => {
     setSelectedNotification(n);
     if (!n.is_read) {
       await handleMarkAsRead(n.id);
+    }
+    const targetTab = getRedirectTab(n.title, n.message);
+    if (targetTab && onRedirect) {
+      onRedirect(targetTab);
+      onClose(); // Auto close notifications drawer/sheet
     }
   };
 
@@ -395,7 +422,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
                     "p-6 border-t shrink-0 flex items-center gap-3",
                     theme === 'dark' ? "border-white/5 bg-[#171320]" : "border-slate-100 bg-slate-50"
                   )}>
-                    {selectedNotification.action_url && (
+                    {selectedNotification.action_url ? (
                       <a 
                         href={selectedNotification.action_url}
                         target="_blank"
@@ -405,12 +432,32 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
                         <ExternalLink size={14} />
                         Visit Destination
                       </a>
-                    )}
+                    ) : (() => {
+                      const tab = getRedirectTab(selectedNotification.title, selectedNotification.message);
+                      if (tab) {
+                        let btnText = 'Submissions';
+                        if (tab === 'chat') btnText = 'Chat Area';
+                        else if (tab === 'weekly') btnText = 'Weekly Hub';
+                        return (
+                          <button
+                            onClick={() => {
+                              if (onRedirect) onRedirect(tab);
+                              setSelectedNotification(null);
+                              onClose();
+                            }}
+                            className="flex-1 py-3 px-4 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-black uppercase text-xs text-center flex items-center justify-center gap-2 transition-all shadow-lg shadow-violet-600/20 cursor-pointer"
+                          >
+                            Go to {btnText}
+                          </button>
+                        );
+                      }
+                      return null;
+                    })()}
                     <button 
                       onClick={() => setSelectedNotification(null)}
                       className={cn(
                         "py-3 px-5 rounded-xl font-black uppercase text-xs transition-all cursor-pointer",
-                        selectedNotification.action_url ? "border" : "w-full py-4 text-center rounded-2xl bg-violet-600 hover:bg-violet-700 text-white shadow-xl shadow-violet-600/20",
+                        (selectedNotification.action_url || getRedirectTab(selectedNotification.title, selectedNotification.message)) ? "border" : "w-full py-4 text-center rounded-2xl bg-violet-600 hover:bg-violet-700 text-white shadow-xl shadow-violet-600/20",
                         theme === 'dark' ? "border-white/10 text-white hover:bg-white/5" : "border-slate-200 text-slate-700 hover:bg-slate-50"
                       )}
                     >

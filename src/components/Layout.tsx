@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { LogOut, User as UserIcon, Sun, Moon, Bell, AlertTriangle, X } from 'lucide-react';
+import { LogOut, User as UserIcon, Sun, Moon, Bell, AlertTriangle, X, MessageSquare } from 'lucide-react';
 import { supabase } from '@/src/lib/supabase';
 import { NotificationCenter } from './NotificationCenter';
 import { NotificationService } from '@/src/lib/notifications';
@@ -87,11 +87,11 @@ export const Layout: React.FC<LayoutProps> = ({
           if (!error && count !== null) {
             setUnreadChatCount(count);
           } else if (error && (error.code === '42P01' || error.message?.includes('does not exist'))) {
-            // Simulator fallback index
-            setUnreadChatCount(1);
+            // Simulator fallback
+            setUnreadChatCount(0);
           }
         } catch (e) {
-          setUnreadChatCount(1);
+          setUnreadChatCount(0);
         }
       };
 
@@ -163,6 +163,7 @@ export const Layout: React.FC<LayoutProps> = ({
 
             {user && (
               <div className="flex items-center gap-4">
+                {/* Dynamic Notification Button */}
                 <button
                   onClick={() => {
                     setIsNotificationsOpen(!isNotificationsOpen);
@@ -171,7 +172,23 @@ export const Layout: React.FC<LayoutProps> = ({
                   className={`p-2 rounded-full transition-colors relative ${theme === 'dark' ? 'text-neutral-400 hover:text-white hover:bg-white/10' : 'text-slate-400 hover:text-slate-900 hover:bg-slate-100'}`}
                   title="Notifications"
                 >
-                  <Bell size={20} />
+                  {unreadCount > 0 ? (
+                    <motion.div
+                      animate={{
+                        scale: [1, 1.15, 1],
+                        rotate: [0, -8, 8, -8, 0]
+                      }}
+                      transition={{
+                        duration: 2.2,
+                        repeat: Infinity,
+                        ease: "easeInOut"
+                      }}
+                    >
+                      <Bell size={20} className="text-violet-400" />
+                    </motion.div>
+                  ) : (
+                    <Bell size={20} />
+                  )}
                   {unreadCount > 0 && (
                     <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-rose-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-[#130722]">
                       {unreadCount > 9 ? '9+' : unreadCount}
@@ -227,7 +244,7 @@ export const Layout: React.FC<LayoutProps> = ({
         {children}
       </main>
 
-      {!hideNav && user && (
+      {!hideNav && user && activeTab !== 'chat' && (
         <BottomNav 
           activeTab={activeTab}
           onTabChange={onTabChange as any}
@@ -251,6 +268,7 @@ export const Layout: React.FC<LayoutProps> = ({
           theme={theme!} 
           isOpen={isNotificationsOpen} 
           onClose={handleCloseNotifications} 
+          onRedirect={onTabChange}
         />
       )}
 
