@@ -140,12 +140,35 @@ export const Layout: React.FC<LayoutProps> = ({
     setIsNotificationsOpen(false);
   };
 
+  const isDark = theme === 'dark';
+  const role = profile?.community_role || 'student';
+  const isAdmin = role === 'admin';
+
+  const navItems = isAdmin 
+    ? [
+        { id: 'overview', label: 'Overview' },
+        { id: 'students', label: 'Students' },
+        { id: 'chat', label: 'Chats' },
+        { id: 'submissions', label: 'Review Hub' },
+        { id: 'invite', label: 'Invite' },
+        { id: 'broadcast', label: 'Broadcast' },
+        { id: 'moderation', label: 'Moderation' },
+      ]
+    : [
+        { id: 'daily', label: 'Home' },
+        { id: 'weekly', label: 'Weekly' },
+        { id: 'submissions', label: 'Past Submissions' },
+        { id: 'chat', label: 'Chats' },
+        { id: 'profile', label: 'Profile' },
+        { id: 'settings', label: 'Settings' },
+      ];
+
   return (
-    <div className={`min-h-screen-ios font-sans flex flex-col transition-colors duration-300 ${theme === 'dark' ? 'bg-[#130722] text-white' : 'bg-slate-50 text-slate-900'}`}>
+    <div className={`min-h-screen-ios font-sans flex flex-col transition-colors duration-300 ${theme === 'dark' ? 'bg-[#130722]' : 'bg-slate-50 text-slate-900'}`}>
       {!hideNav && (
         <nav className={`${theme === 'dark' ? 'bg-[#130722]/80 border-violet-900/50' : 'bg-[#130722]/95 border-violet-900/30'} backdrop-blur-md border-b sticky top-0 z-50`}>
-          <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
-            <div className="flex items-center cursor-pointer" onClick={() => onTabChange?.(profile?.community_role === 'admin' ? 'overview' : 'daily')}>
+          <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
+            <div className="flex items-center cursor-pointer shrink-0" onClick={() => onTabChange?.(profile?.community_role === 'admin' ? 'overview' : 'daily')}>
               <img 
                 src={theme === 'light' 
                   ? "https://jnvpkyvtajegjuqnluzp.supabase.co/storage/v1/object/public/Wilson%20Mastery%20Hub%20images/logo-dark-bg.png" 
@@ -163,8 +186,37 @@ export const Layout: React.FC<LayoutProps> = ({
               </div>
             </div>
 
+            {/* Desktop Navigation Links (Center Alignment) */}
             {user && (
-              <div className="flex items-center gap-4">
+              <div className="hidden md:flex items-center gap-1 bg-black/10 dark:bg-white/[0.03] p-1 rounded-2xl border border-slate-200/50 dark:border-white/5 mx-auto">
+                {navItems.map((item) => {
+                  const isActive = activeTab === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => onTabChange?.(item.id)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-tight transition-all cursor-pointer relative flex items-center gap-1.5 select-none ${
+                        isActive
+                          ? 'bg-violet-600 text-white shadow-lg shadow-violet-600/10'
+                          : theme === 'dark'
+                            ? 'text-white/40 hover:text-white hover:bg-white/5'
+                            : 'text-slate-500 hover:text-slate-900 hover:bg-slate-200/80'
+                      }`}
+                    >
+                      <span>{item.label}</span>
+                      {item.id === 'chat' && unreadChatCount > 0 && (
+                        <span className="w-4 h-4 rounded-full bg-rose-500 text-white text-[8px] font-black flex items-center justify-center shrink-0">
+                          {unreadChatCount}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {user && (
+              <div className="flex items-center gap-4 shrink-0">
                 {/* Dynamic Notification Button */}
                 <button
                   onClick={() => {

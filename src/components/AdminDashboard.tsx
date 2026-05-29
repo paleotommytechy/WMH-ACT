@@ -93,7 +93,7 @@ interface AdminDashboardProps {
   onViewChange?: (view: AdminView) => void;
 }
 
-type AdminView = 'overview' | 'students' | 'submissions' | 'moderation' | 'invite' | 'broadcast';
+type AdminView = 'overview' | 'students' | 'submissions' | 'moderation' | 'invite' | 'broadcast' | 'chat';
 
 const BroadcastForm: React.FC<{ theme: 'dark' | 'light', users: Profile[] }> = ({ theme, users }) => {
   const [form, setForm] = useState({
@@ -727,6 +727,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark', 
           { id: 'overview', label: 'Overview', icon: LayoutDashboard },
           { id: 'students', label: 'Students', icon: Users },
           { id: 'submissions', label: 'Review Hub', icon: FileText },
+          { id: 'chat', label: 'Chats', icon: MessageSquare },
           { id: 'invite', label: 'Invite Student', icon: UserCheck },
           { id: 'broadcast', label: 'Broadcast', icon: Send },
           { id: 'moderation', label: 'Moderation', icon: ShieldAlert },

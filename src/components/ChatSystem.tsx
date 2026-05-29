@@ -7,7 +7,7 @@ import {
   ExternalLink, Heart, Sparkles, MessageSquare, BookOpen, Volume2,
   Calendar, Award, AwardIcon, Shield, Briefcase, Clock, ChevronRight,
   Archive, Star, Hash, Compass, Bell, Flame, Activity, Users, Loader2,
-  Home, Settings, LayoutDashboard, UserPlus
+  Home, Settings, LayoutDashboard, UserPlus, Trash2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
@@ -654,38 +654,89 @@ export const ChatSystem: React.FC<ChatSystemProps> = ({
 
   const handleDeleteMsg = async (msgId: string) => {
     if (!activeChatId) return;
-    if (!window.confirm("Are you sure you want to delete this message?")) return;
 
-    // 1. Delete from Local State Optimistically
-    setMessagesDB(prev => {
-      const list = prev[activeChatId] || [];
-      const filtered = list.filter(m => m.id !== msgId);
-      const finalDB = { ...prev, [activeChatId]: filtered };
-      localStorage.setItem('whatsapp_chat_db_v3', JSON.stringify(finalDB));
-      return finalDB;
+    toast.custom((t) => (
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9, y: 15 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.9, y: -15 }}
+        transition={{ type: "spring", stiffness: 350, damping: 25 }}
+        className={`${t.visible ? 'animate-enter' : 'animate-leave'} 
+          max-w-md w-full bg-slate-900 text-white rounded-2xl shadow-2xl pointer-events-auto flex flex-col p-4 border border-rose-500/30 gap-3 
+          ${theme === 'dark' ? 'bg-[#1b122b]' : 'bg-white text-slate-800 border-slate-200'}
+        `}
+      >
+        <div className="flex items-start gap-3">
+          <div className="p-2 bg-rose-500/10 rounded-xl text-rose-500">
+            <Trash2 size={20} />
+          </div>
+          <div className="flex-1">
+            <h4 className="text-sm font-black tracking-tight leading-none mb-1">Do you want to delete this?</h4>
+            <p className={`text-xs ${theme === 'dark' ? 'text-white/60' : 'text-slate-500'}`}>This action is permanent and cannot be undone.</p>
+          </div>
+          <button 
+            onClick={() => toast.dismiss(t.id)} 
+            className={`p-1 hover:bg-white/5 rounded-lg opacity-60 hover:opacity-100 transition-colors ${theme === 'light' ? 'hover:bg-slate-100' : ''}`}
+          >
+            <X size={16} />
+          </button>
+        </div>
+        <div className="flex justify-end gap-2 mt-1">
+          <button
+            onClick={() => toast.dismiss(t.id)}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+              theme === 'dark' 
+                ? 'bg-transparent border-white/10 hover:bg-white/5 text-white/80' 
+                : 'bg-transparent border-slate-200 hover:bg-slate-50 text-slate-600'
+            }`}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={async () => {
+              toast.dismiss(t.id);
+              
+              // 1. Delete from Local State Optimistically
+              setMessagesDB(prev => {
+                const list = prev[activeChatId] || [];
+                const filtered = list.filter(m => m.id !== msgId);
+                const finalDB = { ...prev, [activeChatId]: filtered };
+                localStorage.setItem('whatsapp_chat_db_v3', JSON.stringify(finalDB));
+                return finalDB;
+              });
+
+              toast.success("Message deleted", { icon: '🗑️' });
+
+              // 2. Perform DB delete over Supabase
+              try {
+                const isGroupRoom = allChatRooms.find(i => i.id === activeChatId)?.isGroup;
+                if (isGroupRoom) {
+                  await supabase
+                    .from('chat_group_messages')
+                    .delete()
+                    .eq('id', msgId)
+                    .eq('sender_id', currentUserId);
+                } else {
+                  await supabase
+                    .from('chat_messages')
+                    .delete()
+                    .eq('id', msgId)
+                    .eq('sender_id', currentUserId);
+                }
+              } catch (err) {
+                console.warn("Could not synchronize message delete with cloud, persistent cached deletion complete.");
+              }
+            }}
+            className="px-4 py-1.5 rounded-xl text-xs font-extrabold bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-600/20 active:scale-95 transition-all cursor-pointer"
+          >
+            Delete
+          </button>
+        </div>
+      </motion.div>
+    ), {
+      duration: 10000,
+      position: 'top-center'
     });
-
-    toast.success("Message deleted", { icon: '🗑️' });
-
-    // 2. Perform DB delete over Supabase
-    try {
-      const isGroupRoom = allChatRooms.find(i => i.id === activeChatId)?.isGroup;
-      if (isGroupRoom) {
-        await supabase
-          .from('chat_group_messages')
-          .delete()
-          .eq('id', msgId)
-          .eq('sender_id', currentUserId);
-      } else {
-        await supabase
-          .from('chat_messages')
-          .delete()
-          .eq('id', msgId)
-          .eq('sender_id', currentUserId);
-      }
-    } catch (err) {
-      console.warn("Could not synchronize message delete with cloud, persistent cached deletion complete.");
-    }
   };
 
   // Handle message send & automated simulation responder
