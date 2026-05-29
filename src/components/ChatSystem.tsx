@@ -40,6 +40,7 @@ interface ChatSystemProps {
   activeTab?: string;
   onTabChange?: (tab: any) => void;
   onAddClick?: () => void;
+  onActiveChatChange?: (activeChatId: string | null) => void;
 }
 
 export const ChatSystem: React.FC<ChatSystemProps> = ({
@@ -50,10 +51,15 @@ export const ChatSystem: React.FC<ChatSystemProps> = ({
   onBack,
   activeTab: appActiveTab = 'chat',
   onTabChange: onAppTabChange = () => {},
-  onAddClick = () => {}
+  onAddClick = () => {},
+  onActiveChatChange
 }) => {
   const isDark = theme === 'dark';
-  const isAdmin = userRole === 'admin';
+  const isAdmin = userRole?.toLowerCase() === 'admin' || profile?.role_title?.toLowerCase() === 'admin';
+
+  // Refs for tracking stable lists across real-time subscriptions without teardowns
+  const allChatRoomsRef = useRef<any[]>([]);
+  const profileRef = useRef<any>(null);
 
   // Navigation Filter Tab: 'all' | 'admins'
   const [activeTab, setActiveTab] = useState<'all' | 'admins'>('all');
@@ -63,6 +69,12 @@ export const ChatSystem: React.FC<ChatSystemProps> = ({
   
   // Selected detailed conversation view
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (onActiveChatChange) {
+      onActiveChatChange(activeChatId);
+    }
+  }, [activeChatId, onActiveChatChange]);
   
   // Right Info Panel visibility (toggleable on mobile, beautiful display on desktop)
   const [showInfoPanel, setShowInfoPanel] = useState(true);
@@ -102,15 +114,25 @@ export const ChatSystem: React.FC<ChatSystemProps> = ({
   // Available Instructors / Contacts fetched dynamically from public profiles table
   const [instructors, setInstructors] = useState<any[]>([]);
 
-  // Combines dynamic user profiles (sorted to list available admins first)
+  // Combines dynamic user profiles and active student circles (sorted to list available admins first)
   const allChatRooms = useMemo(() => {
-    const list = [...instructors];
-    return list.sort((a, b) => {
+    const list = [...instructors, ...activeGroups];
+    const sorted = [...list].sort((a, b) => {
       const aIsAdmin = a.role === 'admin' ? 1 : 0;
       const bIsAdmin = b.role === 'admin' ? 1 : 0;
       return bIsAdmin - aIsAdmin;
     });
-  }, [instructors]);
+    return sorted;
+  }, [instructors, activeGroups]);
+
+  // Sync refs instantly with the memoized/prop states
+  useEffect(() => {
+    allChatRoomsRef.current = allChatRooms;
+  }, [allChatRooms]);
+
+  useEffect(() => {
+    profileRef.current = profile;
+  }, [profile]);
 
   // Set-up stories dataset dynamically from real profiles (no mock data)
   const statusStories = useMemo(() => {
@@ -224,16 +246,23 @@ export const ChatSystem: React.FC<ChatSystemProps> = ({
       const adminsInRaw = rawData ? rawData.filter(isAdminRow) : [];
 
       if (queryError || !rawData || adminsInRaw.length === 0) {
-        console.log('[ChatSystem Debug] "profiles" initial query had issues or returned 0 admins. Retrying "profiles" directly...');
+        console.log('[ChatSystem Debug] "profiles" initial query had issues or returned 0 admins. Retrying "profiles" with role_title = "admin" to fetch admin profile directly...');
         try {
           const { data, error } = await supabase
             .from('profiles')
             .select('id, full_name, username, primary_track, role_title, skill_level, profile_image, bio, community_role, last_active_at')
-            .neq('id', currentUserId);
+            .eq('role_title', 'admin');
           
           if (!error && data && data.length > 0) {
-            console.log('[ChatSystem Debug] Querying "profiles" table succeeded with entries count:', data.length);
-            rawData = data;
+            console.log('[ChatSystem Debug] Querying "profiles" table with role_title = "admin" succeeded with entries count:', data.length);
+            const filteredAdmins = data.filter(item => item.id !== currentUserId);
+            if (rawData && rawData.length > 0) {
+              const existingIds = new Set(rawData.map(r => r.id));
+              const uniqueNew = filteredAdmins.filter(r => !existingIds.has(r.id));
+              rawData = [...rawData, ...uniqueNew];
+            } else {
+              rawData = filteredAdmins;
+            }
           } else if (error) {
             console.error('[ChatSystem Debug] Retry "profiles" query error:', error);
           }
@@ -329,7 +358,7 @@ export const ChatSystem: React.FC<ChatSystemProps> = ({
     const fetchMessagesFromServer = async () => {
       setIsLoadingMessages(true);
       try {
-        const isGroupRoom = allChatRooms.find(i => i.id === activeChatId)?.isGroup;
+        const isGroupRoom = allChatRoomsRef.current.find(i => i.id === activeChatId)?.isGroup;
         if (isGroupRoom) {
           const { data, error } = await supabase
             .from('chat_group_messages')
@@ -372,7 +401,7 @@ export const ChatSystem: React.FC<ChatSystemProps> = ({
                 id: m.id,
                 student_id: m.student_id,
                 sender_id: m.sender_id,
-                sender_name: m.sender_id === currentUserId ? (profile?.full_name || 'Student') : (allChatRooms.find(i => i.id === m.sender_id)?.name || 'Advisor'),
+                sender_name: m.sender_id === currentUserId ? (profileRef.current?.full_name || 'Student') : (allChatRoomsRef.current.find(i => i.id === m.sender_id)?.name || 'Advisor'),
                 message_text: m.message_text,
                 file_url: m.file_url,
                 file_name: m.file_name,
@@ -393,7 +422,7 @@ export const ChatSystem: React.FC<ChatSystemProps> = ({
     fetchMessagesFromServer();
 
     // Listen to real-time additions to Supabase
-    const isGroupRoom = allChatRooms.find(i => i.id === activeChatId)?.isGroup;
+    const isGroupRoom = allChatRoomsRef.current.find(i => i.id === activeChatId)?.isGroup;
     const chatStudentId = isAdmin ? activeChatId : currentUserId;
     const channelName = isGroupRoom ? `g_chat:${activeChatId}` : `d_chat:${chatStudentId}`;
     const tableToListen = isGroupRoom ? 'chat_group_messages' : 'chat_messages';
@@ -419,11 +448,18 @@ export const ChatSystem: React.FC<ChatSystemProps> = ({
             const roomMsgs = prev[activeChatId] || [];
             if (roomMsgs.some(m => m.id === newMsg.id)) return prev;
 
+            // Avoid message redundancy/duplication with optimistic additions
+            const optimisticIndex = roomMsgs.findIndex(m => 
+              m.id.startsWith('msg-') && 
+              m.sender_id === newMsg.sender_id && 
+              m.message_text === newMsg.message_text
+            );
+
             const mapped = {
               id: newMsg.id,
               student_id: newMsg.student_id || chatStudentId,
               sender_id: newMsg.sender_id,
-              sender_name: newMsg.sender_name || (newMsg.sender_id === currentUserId ? (profile?.full_name || 'My Student') : (allChatRooms.find(r => r.id === newMsg.sender_id)?.name || 'Advisor')),
+              sender_name: newMsg.sender_name || (newMsg.sender_id === currentUserId ? (profileRef.current?.full_name || 'My Student') : (allChatRoomsRef.current.find(r => r.id === newMsg.sender_id)?.name || 'Advisor')),
               message_text: newMsg.message_text,
               file_url: newMsg.file_url,
               file_name: newMsg.file_name,
@@ -431,6 +467,15 @@ export const ChatSystem: React.FC<ChatSystemProps> = ({
               is_read: true,
               created_at: newMsg.created_at
             };
+
+            if (optimisticIndex !== -1) {
+              const updated = [...roomMsgs];
+              updated[optimisticIndex] = mapped;
+              return {
+                ...prev,
+                [activeChatId]: updated
+              };
+            }
 
             return {
               ...prev,
@@ -445,7 +490,7 @@ export const ChatSystem: React.FC<ChatSystemProps> = ({
       isSubscribed = false;
       supabase.removeChannel(channel);
     };
-  }, [activeChatId, currentUserId, allChatRooms]);
+  }, [activeChatId, currentUserId]);
 
   // Scroll to bottom when new messages populate
   useEffect(() => {
@@ -1341,20 +1386,20 @@ export const ChatSystem: React.FC<ChatSystemProps> = ({
               {/* Top Navigation Control Buttons */}
               <div className="flex items-center gap-2">
                 <button 
-                  onClick={() => toast.success("Voice channel standby.", { icon: '🎙️' })}
+                  onClick={() => {}}
                   className={`p-2 rounded-xl border transition-all ${
                     isDark ? 'bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white border-white/5' : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-600'
                   }`}
-                  title="Initialize Voice Call"
+                  title="Initialize Voice Call (Inactive)"
                 >
                   <Phone size={14} />
                 </button>
                 <button 
-                  onClick={() => toast.success("Visual stream channel standby.", { icon: '📹' })}
+                  onClick={() => {}}
                   className={`p-2 rounded-xl border transition-all ${
                     isDark ? 'bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white border-white/5' : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-600'
                   }`}
-                  title="Initialize Video Stream"
+                  title="Initialize Video Stream (Inactive)"
                 >
                   <Video size={14} />
                 </button>
@@ -1671,14 +1716,9 @@ export const ChatSystem: React.FC<ChatSystemProps> = ({
 
                 {/* Smiley Icon on Left */}
                 <button 
-                  onClick={() => toast.success("Emoji selector active inside focus workspace.", {
-                    style: {
-                      background: isDark ? '#1a1625' : '#fff',
-                      color: isDark ? '#fff' : '#1e293b',
-                    }
-                  })}
+                  onClick={() => {}}
                   className={`transition-colors shrink-0 p-1 rounded-full cursor-pointer hover:bg-white/5 ${isDark ? 'text-[#e2e8f0]/60 hover:text-white' : 'text-slate-500 hover:text-slate-800'}`}
-                  title="Smileys & Emojis"
+                  title="Smileys & Emojis (Inactive)"
                 >
                   <Smile size={19} className="stroke-[2.2]" />
                 </button>
@@ -1715,17 +1755,9 @@ export const ChatSystem: React.FC<ChatSystemProps> = ({
                   </button>
 
                   <button 
-                    onClick={() => {
-                      toast.success("Camera access standby... Focus on your proof!", {
-                        icon: '📸',
-                        style: {
-                          background: isDark ? '#1a1625' : '#fff',
-                          color: isDark ? '#fff' : '#1e293b',
-                        }
-                      });
-                    }}
+                    onClick={() => {}}
                     className={`transition-all hover:scale-105 duration-200 p-1.5 rounded-full hover:bg-white/5 cursor-pointer ${isDark ? 'text-[#e2e8f0]/60 hover:text-white' : 'text-slate-500 hover:text-slate-800'}`}
-                    title="Capture camera photo validation"
+                    title="Capture camera photo validation (Inactive)"
                   >
                     <Camera size={18} className="stroke-[2.2]" />
                   </button>

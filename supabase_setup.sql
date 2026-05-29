@@ -113,6 +113,11 @@ CREATE POLICY "Public profiles are viewable by everyone"
   ON public.profiles FOR SELECT 
   USING (public_profile_enabled = true OR auth.uid() = id);
 
+DROP POLICY IF EXISTS "Admin profiles are viewable by everyone" ON public.profiles;
+CREATE POLICY "Admin profiles are viewable by everyone"
+  ON public.profiles FOR SELECT
+  USING (role_title = 'admin' OR community_role = 'admin');
+
 DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
 CREATE POLICY "Users can update own profile" 
   ON public.profiles FOR UPDATE 

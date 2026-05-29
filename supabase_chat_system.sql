@@ -25,13 +25,13 @@ on public.chat_messages for all
 using (
   exists (
     select 1 from public.profiles
-    where id = auth.uid() and community_role = 'admin'
+    where id = auth.uid() and (community_role = 'admin' or role_title = 'admin')
   )
 )
 with check (
   exists (
     select 1 from public.profiles
-    where id = auth.uid() and community_role = 'admin'
+    where id = auth.uid() and (community_role = 'admin' or role_title = 'admin')
   )
 );
 

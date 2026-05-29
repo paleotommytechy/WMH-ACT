@@ -89,6 +89,7 @@ export default function App() {
 
   const [activeTab, setActiveTab] = useState<string>('daily');
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [isChatActive, setIsChatActive] = useState<boolean>(false);
 
   useEffect(() => {
     // Initial theme check
@@ -342,6 +343,7 @@ export default function App() {
       }}
       theme={theme}
       toggleTheme={toggleTheme}
+      hideBottomNav={activeTab === 'chat' && isChatActive}
     >
       <Toaster position="top-right" toastOptions={{
         style: {
@@ -366,11 +368,11 @@ export default function App() {
           onBack={() => setActiveTab('daily')}
         />
       ) : activeTab === 'chat' ? (
-        <div className="w-full h-[calc(100vh-8.5rem)] md:h-[720px] flex flex-col">
+        <div className={`w-full ${isChatActive ? 'h-[calc(100vh-4rem)] md:h-[720px]' : 'h-[calc(100vh-8.5rem)] md:h-[720px]'} flex flex-col`}>
           <ChatSystem 
             theme={theme} 
             currentUserId={session.user.id} 
-            userRole={profile?.community_role || 'student'} 
+            userRole={(profile?.role_title?.toLowerCase() === 'admin' || profile?.community_role?.toLowerCase() === 'admin') ? 'admin' : (profile?.community_role || 'student')} 
             profile={profile}
             activeTab={activeTab}
             onTabChange={setActiveTab}
@@ -379,6 +381,7 @@ export default function App() {
               setIsSubmitCollapsed(false);
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
+            onActiveChatChange={(id) => setIsChatActive(!!id)}
           />
         </div>
       ) : activeTab === 'submissions' && profile?.community_role !== 'admin' ? (

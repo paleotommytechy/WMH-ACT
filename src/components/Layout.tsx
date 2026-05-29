@@ -12,6 +12,7 @@ interface LayoutProps {
   user?: any;
   profile?: any;
   hideNav?: boolean;
+  hideBottomNav?: boolean;
   theme?: 'dark' | 'light';
   toggleTheme?: () => void;
   onTabChange?: (tab: string) => void;
@@ -24,6 +25,7 @@ export const Layout: React.FC<LayoutProps> = ({
   user, 
   profile, 
   hideNav, 
+  hideBottomNav,
   onTabChange, 
   onAddClick,
   activeTab = 'daily',
@@ -238,13 +240,13 @@ export const Layout: React.FC<LayoutProps> = ({
 
       <main className={
         activeTab === 'chat'
-          ? `w-full flex-1 flex flex-col md:max-w-5xl md:mx-auto md:px-4 md:py-8 pb-24 md:pb-12`
+          ? `w-full flex-1 flex flex-col md:max-w-5xl md:mx-auto md:px-4 md:py-8 ${hideBottomNav ? 'pb-0' : 'pb-24'} md:pb-12`
           : `max-w-5xl mx-auto px-4 w-full ${hideNav ? 'flex-1 flex flex-col justify-center py-12' : 'py-8 md:py-12 pb-24 md:pb-12'}`
       }>
         {children}
       </main>
 
-      {!hideNav && user && (
+      {!hideNav && !hideBottomNav && user && (
         <BottomNav 
           activeTab={activeTab}
           onTabChange={onTabChange as any}
