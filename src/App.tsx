@@ -54,8 +54,19 @@ export default function App() {
       });
 
       if (!response.ok) {
-        const errJson = await response.json();
-        throw new Error(errJson.error || "Failed to generate weekly summary.");
+        let errMsg = "Failed to generate weekly summary.";
+        try {
+          const text = await response.text();
+          if (text.startsWith("<!DOCTYPE") || text.slice(0, 100).includes("<html")) {
+            errMsg = `Server error (${response.status}): The server returned an HTML error page.`;
+          } else {
+            const errJson = JSON.parse(text);
+            errMsg = errJson.error || errMsg;
+          }
+        } catch (e) {
+          errMsg = `Server error (${response.status}): ${response.statusText || 'Unknown error'}`;
+        }
+        throw new Error(errMsg);
       }
 
       const data = await response.json();

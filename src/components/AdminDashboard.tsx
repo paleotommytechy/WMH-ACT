@@ -262,8 +262,23 @@ const InviteForm: React.FC<{ theme: 'dark' | 'light' }> = ({ theme }) => {
         })
       });
 
+      if (!response.ok) {
+        let errMsg = 'Failed to create account';
+        try {
+          const text = await response.text();
+          if (text.startsWith("<!DOCTYPE") || text.slice(0, 100).includes("<html")) {
+            errMsg = `Server error (${response.status}): The server returned an HTML error page.`;
+          } else {
+            const errJson = JSON.parse(text);
+            errMsg = errJson.error || errMsg;
+          }
+        } catch (e) {
+          errMsg = `Server error (${response.status}): ${response.statusText || 'Unknown error'}`;
+        }
+        throw new Error(errMsg);
+      }
+
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error || 'Failed to create account');
 
       toast.success('Account Created Successfully!');
       setCreated(true);
@@ -476,11 +491,28 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark', 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       });
+
+      if (!response.ok) {
+        let errMsg = 'Failed identity storage initialization';
+        try {
+          const text = await response.text();
+          if (text.startsWith("<!DOCTYPE") || text.slice(0, 100).includes("<html")) {
+            errMsg = `Server error (${response.status}): The server returned an HTML error page.`;
+          } else {
+            const errJson = JSON.parse(text);
+            errMsg = errJson.error || errMsg;
+          }
+        } catch (e) {
+          errMsg = `Server error (${response.status}): ${response.statusText || 'Unknown error'}`;
+        }
+        throw new Error(errMsg);
+      }
+
       const data = await response.json();
       if (data.success) {
         toast.success('Identity Storage (Avatars) Initialized!');
       } else {
-        throw new Error(data.error);
+        throw new Error(data.error || 'Failed to initialize identity storage.');
       }
     } catch (err: any) {
       toast.error('Initialization failed: ' + err.message);
