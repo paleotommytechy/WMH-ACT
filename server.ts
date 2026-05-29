@@ -5,6 +5,7 @@ import { fileURLToPath } from "url";
 import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
 import webpush from "web-push";
+import { GoogleGenAI } from "@google/genai";
 
 dotenv.config();
 
@@ -12,8 +13,94 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+let aiInstance: GoogleGenAI | null = null;
+function getGeminiClient(): GoogleGenAI {
+  if (!aiInstance) {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error("GEMINI_API_KEY environment variable is required but missing. Please configure it in your Settings > Secrets.");
+    }
+    aiInstance = new GoogleGenAI({
+      apiKey,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        }
+      }
+    });
+  }
+  return aiInstance;
+}
+
 function setupRoutes(app: Express) {
   app.use(express.json());
+
+  // AI Generation Routes
+  app.post("/api/ai/whatsapp", async (req, res, next) => {
+    const { taskCompleted, timeSpent, reflection, submittedDate } = req.body;
+    
+    if (!taskCompleted && !reflection) {
+      return res.status(400).json({ error: "Missing required submission details." });
+    }
+
+    try {
+      const gClient = getGeminiClient();
+      const prompt = `You are an AI assistant for Wilson's Mastery Hub. Rewrite the user's daily accountability submission into a conversational, human-sounding WhatsApp post, including the tag '#WilsonMasteryHub #LearningInPublic'.
+
+Here is the daily accountability submission:
+- Task completed: ${taskCompleted || 'N/A'}
+- Time Spent: ${timeSpent || 0} minutes
+- Reflection: ${reflection || 'N/A'}
+- Date: ${submittedDate || 'N/A'}`;
+
+      const response = await gClient.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: prompt,
+      });
+
+      res.status(200).json({ post: response.text });
+    } catch (err: any) {
+      console.error("WhatsApp AI Generation Error:", err);
+      res.status(500).json({ error: err.message || "Failed to generate humanized WhatsApp post." });
+    }
+  });
+
+  app.post("/api/ai/linkedin-weekly", async (req, res, next) => {
+    const { submissions, rangeText } = req.body;
+
+    if (!submissions || !Array.isArray(submissions) || submissions.length === 0) {
+      return res.status(400).json({ error: "No submissions provided to analyze." });
+    }
+
+    try {
+      const gClient = getGeminiClient();
+      
+      const submissionsList = submissions.map((sub: any, i: number) => {
+        return `Submission ${i + 1}:
+- Task Completed: ${sub.task_completed}
+- Time Spent: ${sub.time_spent} minutes
+- Reflection: ${sub.reflection}
+- Date: ${sub.submitted_date}`;
+      }).join("\n\n");
+
+      const prompt = `You are an AI expert for Wilson's Mastery Hub. Analyze the week's submissions and generate a professional, engaging LinkedIn post summarizing achievements and consistency based on the platform's focus.
+ including the tag '#WilsonMasteryHub #LearningInPublic' @wilsonmasteryhub
+
+Here is context about the week's review period: ${rangeText || "Focus Week"}
+Here are the daily submissions for this week:
+${submissionsList}`;
+
+      const response = await gClient.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: prompt,
+      });
+
+      res.status(200).json({ post: response.text });
+    } catch (err: any) {
+      console.error("LinkedIn AI Summary Error:", err);
+      res.status(500).json({ error: err.message || "Failed to generate weekly LinkedIn summary." });
+    }
+  });
 
   // API Routes
   app.get("/api/health", (req, res) => {

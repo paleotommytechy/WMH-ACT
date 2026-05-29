@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Clock, ExternalLink, Calendar, MessageSquare, Star, CheckCircle2, AlertCircle, Maximize2 } from 'lucide-react';
+import { X, Clock, ExternalLink, Calendar, MessageSquare, Star, CheckCircle2, AlertCircle, Maximize2, Sparkles, Copy, Check, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Submission } from '@/src/lib/types';
 import Markdown from 'react-markdown';
@@ -22,6 +22,54 @@ export const SubmissionDetailModal: React.FC<SubmissionDetailModalProps> = ({
   theme = 'dark' 
 }) => {
   const [showLightbox, setShowLightbox] = useState(false);
+  const [whatsappPost, setWhatsappPost] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    // Reset AI state when submission changes
+    setWhatsappPost(null);
+    setAiError(null);
+    setCopied(false);
+  }, [submission]);
+
+  const generateWhatsApp = async () => {
+    setGenerating(true);
+    setAiError(null);
+    try {
+      const response = await fetch("/api/ai/whatsapp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          taskCompleted: submission.task_completed,
+          timeSpent: submission.time_spent,
+          reflection: submission.reflection,
+          submittedDate: submission.submitted_date
+        }),
+      });
+
+      if (!response.ok) {
+        const errJson = await response.json();
+        throw new Error(errJson.error || "Failed to generate humanized update.");
+      }
+
+      const data = await response.json();
+      setWhatsappPost(data.post);
+    } catch (err: any) {
+      console.error(err);
+      setAiError(err.message || "Something went wrong.");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const copyToClipboard = () => {
+    if (!whatsappPost) return;
+    navigator.clipboard.writeText(whatsappPost);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -200,6 +248,83 @@ export const SubmissionDetailModal: React.FC<SubmissionDetailModalProps> = ({
                    <div className={`text-sm font-medium leading-relaxed break-words whitespace-pre-wrap markdown-body ${theme === 'dark' ? 'text-white/80' : 'text-slate-800'}`}>
                      <Markdown>{submission.review.admin_notes}</Markdown>
                    </div>
+                </div>
+              )}
+
+              {/* AI WhatsApp Humanizer Agent */}
+              {!submission.is_draft && (
+                <div className={`p-6 rounded-2xl border transition-all ${
+                  theme === 'dark' 
+                    ? 'bg-emerald-500/[0.03] border-emerald-500/20 text-white' 
+                    : 'bg-emerald-50/50 border-emerald-200 text-slate-900'
+                }`}>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Sparkles size={16} className="text-emerald-500 animate-pulse" />
+                    <span className="text-[10px] font-black uppercase text-emerald-500 tracking-widest">
+                      AI WhatsApp Humanizer Agent
+                    </span>
+                  </div>
+                  <p className={`text-xs mb-4 leading-relaxed ${theme === 'dark' ? 'text-white/70' : 'text-slate-600'}`}>
+                    Rewrite this accountability submission into a conversational, human-sounding WhatsApp post including the official mastery tags.
+                  </p>
+                  
+                  {whatsappPost ? (
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className={`text-[10px] font-bold ${theme === 'dark' ? 'text-white/40' : 'text-slate-500'}`}>
+                          Generated Social Copy:
+                        </span>
+                        <button
+                          onClick={copyToClipboard}
+                          className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl border cursor-pointer transition-all ${
+                            copied 
+                              ? 'bg-emerald-500/20 border-emerald-500 text-emerald-500' 
+                              : theme === 'dark' 
+                                ? 'bg-white/5 border-white/10 hover:bg-white/10 text-white' 
+                                : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-700'
+                          }`}
+                        >
+                          {copied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                          {copied ? 'Copied to Clipboard' : 'Copy Post'}
+                        </button>
+                      </div>
+                      <div className={`p-4 rounded-xl border text-sm font-sans whitespace-pre-wrap leading-relaxed select-text ${
+                        theme === 'dark' ? 'bg-[#0f0b18] border-white/5 text-emerald-200/90' : 'bg-white border-emerald-100 text-slate-700'
+                      }`}>
+                        {whatsappPost}
+                      </div>
+                      <button
+                        onClick={generateWhatsApp}
+                        disabled={generating}
+                        className={`text-xs font-bold underline transition-all ${
+                          theme === 'dark' ? 'text-white/40 hover:text-emerald-400' : 'text-slate-500 hover:text-emerald-600'
+                        }`}
+                      >
+                        Regenerate Response
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={generateWhatsApp}
+                      disabled={generating}
+                      className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold py-3 px-4 rounded-xl text-xs uppercase tracking-wider transition-all shadow-lg flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      {generating ? (
+                        <>
+                          <Loader2 className="animate-spin" size={14} />
+                          Converting submission...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles size={14} />
+                          Generate Conversational WhatsApp Post
+                        </>
+                      )}
+                    </button>
+                  )}
+                  {aiError && (
+                    <p className="mt-2 text-xs text-red-500 font-semibold">{aiError}</p>
+                  )}
                 </div>
               )}
             </div>

@@ -17,7 +17,7 @@ import { SubmissionDetailModal } from './components/SubmissionDetailModal';
 import { 
   Loader2, Plus, Calendar, Clock, ChevronRight, ChevronDown, TrendingUp, 
   Shield, User as UserIcon, Star, CheckCircle2, AlertCircle, MessageSquare,
-  Folder, FolderOpen, FileText
+  Folder, FolderOpen, FileText, Sparkles, Copy, Check
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format, startOfWeek, endOfWeek, isSameWeek } from 'date-fns';
@@ -35,6 +35,48 @@ export default function App() {
   const [isSubmitCollapsed, setIsSubmitCollapsed] = useState(window.innerWidth < 768);
   const [isHistoryCollapsed, setIsHistoryCollapsed] = useState(window.innerWidth < 768);
   const [expandedWeeks, setExpandedWeeks] = useState<Record<string, boolean>>({});
+  const [weeklyLinkedInPosts, setWeeklyLinkedInPosts] = useState<Record<string, string>>({});
+  const [generatingLinkedIn, setGeneratingLinkedIn] = useState<string | null>(null);
+  const [copiedLinkedIn, setCopiedLinkedIn] = useState<Record<string, boolean>>({});
+  const [linkedInErrors, setLinkedInErrors] = useState<Record<string, string>>({});
+
+  const generateLinkedInWeekly = async (weekSubmissions: any[], rangeText: string, weekKey: string) => {
+    setGeneratingLinkedIn(weekKey);
+    setLinkedInErrors(prev => ({ ...prev, [weekKey]: '' }));
+    try {
+      const response = await fetch("/api/ai/linkedin-weekly", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          submissions: weekSubmissions,
+          rangeText: rangeText
+        }),
+      });
+
+      if (!response.ok) {
+        const errJson = await response.json();
+        throw new Error(errJson.error || "Failed to generate weekly summary.");
+      }
+
+      const data = await response.json();
+      setWeeklyLinkedInPosts(prev => ({ ...prev, [weekKey]: data.post }));
+    } catch (err: any) {
+      console.error(err);
+      setLinkedInErrors(prev => ({ ...prev, [weekKey]: err.message || "Something went wrong." }));
+    } finally {
+      setGeneratingLinkedIn(null);
+    }
+  };
+
+  const copyLinkedInToClipboard = (weekKey: string) => {
+    const postText = weeklyLinkedInPosts[weekKey];
+    if (!postText) return;
+    navigator.clipboard.writeText(postText);
+    setCopiedLinkedIn(prev => ({ ...prev, [weekKey]: true }));
+    setTimeout(() => {
+      setCopiedLinkedIn(prev => ({ ...prev, [weekKey]: false }));
+    }, 2000);
+  };
 
   // Group submissions by week for the folder-style PWA performance optimization
   const groupSubmissionsByWeek = (subs: any[]) => {
@@ -458,6 +500,86 @@ export default function App() {
                           animate={{ opacity: 1, y: 0 }}
                           className="pl-4 md:pl-6 space-y-3 pt-1 border-l border-dashed border-violet-500/20"
                         >
+                          {/* AI Weekly Review Agent Card */}
+                          {group.submissions.length > 0 && (
+                            <div className={`backdrop-blur-sm p-5 rounded-2xl border flex flex-col gap-3 transition-all ${
+                              theme === 'dark' 
+                                ? 'bg-[#1b122b]/40 border-violet-500/20 text-white' 
+                                : 'bg-slate-50 border-slate-200 text-slate-900'
+                            }`}>
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Sparkles size={16} className="text-violet-400 animate-pulse" />
+                                  <span className="text-[10px] font-black uppercase text-violet-400 tracking-widest">
+                                    AI LinkedIn Weekly Agent
+                                  </span>
+                                </div>
+                                {weeklyLinkedInPosts[group.weekKey] && (
+                                  <button
+                                    onClick={() => copyLinkedInToClipboard(group.weekKey)}
+                                    className={`flex items-center gap-1 text-[10px] font-bold px-2.5 py-1.5 rounded-xl border cursor-pointer transition-colors ${
+                                      copiedLinkedIn[group.weekKey]
+                                        ? 'bg-violet-500/20 border-violet-500 text-violet-400'
+                                        : theme === 'dark' 
+                                          ? 'bg-white/5 border-white/10 hover:bg-white/10 text-white' 
+                                          : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-700'
+                                    }`}
+                                  >
+                                    {copiedLinkedIn[group.weekKey] ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
+                                    {copiedLinkedIn[group.weekKey] ? 'Copied' : 'Copy Summary'}
+                                  </button>
+                                )}
+                              </div>
+                              
+                              <p className={`text-xs ${theme === 'dark' ? 'text-white/60' : 'text-slate-600'}`}>
+                                Analyze all {group.submissions.length} submissions from this week and draft an inspiring, professional LinkedIn summary of achievements and consistency!
+                              </p>
+
+                              {weeklyLinkedInPosts[group.weekKey] ? (
+                                <div className="space-y-2">
+                                  <div className={`p-4 rounded-xl border text-xs whitespace-pre-wrap leading-relaxed font-sans ${
+                                    theme === 'dark' ? 'bg-[#100b1a] border-white/5 text-violet-200/80' : 'bg-white border-slate-100 text-slate-700'
+                                  }`}>
+                                    {weeklyLinkedInPosts[group.weekKey]}
+                                  </div>
+                                  <div className="flex gap-4">
+                                    <button
+                                      onClick={() => generateLinkedInWeekly(group.submissions, group.rangeText, group.weekKey)}
+                                      disabled={generatingLinkedIn === group.weekKey}
+                                      className={`text-[10px] font-bold underline transition-all ${
+                                        theme === 'dark' ? 'text-white/40 hover:text-violet-400' : 'text-slate-500 hover:text-violet-600'
+                                      }`}
+                                    >
+                                      Regenerate Analysis
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => generateLinkedInWeekly(group.submissions, group.rangeText, group.weekKey)}
+                                  disabled={generatingLinkedIn === group.weekKey}
+                                  className="self-start bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-black py-2 px-4 rounded-xl text-[10px] uppercase tracking-wider transition-all shadow-lg flex items-center justify-center gap-2 cursor-pointer"
+                                >
+                                  {generatingLinkedIn === group.weekKey ? (
+                                    <>
+                                      <Loader2 className="animate-spin" size={12} />
+                                      Analyzing submissions...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Sparkles size={12} />
+                                      Generate LinkedIn Weekly Review Post
+                                    </>
+                                  )}
+                                </button>
+                              )}
+                              
+                              {linkedInErrors[group.weekKey] && (
+                                <p className="text-xs text-red-500 font-semibold">{linkedInErrors[group.weekKey]}</p>
+                              )}
+                            </div>
+                          )}
+
                           {group.submissions.map((s) => (
                             <motion.div
                               key={s.id}

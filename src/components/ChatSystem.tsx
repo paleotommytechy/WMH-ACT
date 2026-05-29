@@ -98,6 +98,9 @@ export const ChatSystem: React.FC<ChatSystemProps> = ({
   // Fallback Simulator message database synced to localStorage for persistency
   const [messagesDB, setMessagesDB] = useState<Record<string, ChatMessage[]>>({});
 
+  // Track accurate unread message counts for all active chat rooms
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+
   // Dynamic group chat, student list loading and circle formation
   const [activeGroups, setActiveGroups] = useState<any[]>([]);
   const [studentsList, setStudentsList] = useState<any[]>([]);
@@ -117,13 +120,19 @@ export const ChatSystem: React.FC<ChatSystemProps> = ({
   // Combines dynamic user profiles and active student circles (sorted to list available admins first)
   const allChatRooms = useMemo(() => {
     const list = [...instructors, ...activeGroups];
-    const sorted = [...list].sort((a, b) => {
+    const mapped = list.map(room => {
+      if (room.id === activeChatId) {
+        return { ...room, unreadCount: 0 };
+      }
+      return { ...room, unreadCount: unreadCounts[room.id] || 0 };
+    });
+    const sorted = [...mapped].sort((a, b) => {
       const aIsAdmin = a.role === 'admin' ? 1 : 0;
       const bIsAdmin = b.role === 'admin' ? 1 : 0;
       return bIsAdmin - aIsAdmin;
     });
     return sorted;
-  }, [instructors, activeGroups]);
+  }, [instructors, activeGroups, unreadCounts, activeChatId]);
 
   // Sync refs instantly with the memoized/prop states
   useEffect(() => {
@@ -340,6 +349,53 @@ export const ChatSystem: React.FC<ChatSystemProps> = ({
     }
   }, [currentUserId]);
 
+  const fetchUnreadCounts = async () => {
+    if (!currentUserId) return;
+    try {
+      const query = supabase
+        .from('chat_messages')
+        .select('id, sender_id, student_id')
+        .eq('is_read', false)
+        .neq('sender_id', currentUserId);
+      
+      const { data, error } = await query;
+      if (!error && data) {
+        const counts: Record<string, number> = {};
+        data.forEach(m => {
+          const roomId = isAdmin ? m.student_id : m.sender_id;
+          if (roomId) {
+            counts[roomId] = (counts[roomId] || 0) + 1;
+          }
+        });
+        setUnreadCounts(counts);
+      }
+    } catch (e) {
+      console.error('Error fetching unread counts:', e);
+    }
+  };
+
+  // Real-time listener for global unread message updates
+  useEffect(() => {
+    if (!currentUserId) return;
+
+    fetchUnreadCounts();
+
+    const globalChatChannel = supabase
+      .channel('chat-system-global-unread')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'chat_messages'
+      }, () => {
+        fetchUnreadCounts();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(globalChatChannel);
+    };
+  }, [currentUserId, isAdmin, activeChatId]);
+
   // Set default chat once DB or groups are loaded
   useEffect(() => {
     if (!activeChatId && allChatRooms.length > 0) {
@@ -406,10 +462,24 @@ export const ChatSystem: React.FC<ChatSystemProps> = ({
                 file_url: m.file_url,
                 file_name: m.file_name,
                 file_type: m.file_type,
-                is_read: m.is_read,
+                is_read: m.sender_id !== currentUserId ? true : m.is_read,
                 created_at: m.created_at
               }))
             }));
+
+            // Mark unread messages from other senders as read in Supabase
+            const unreadIds = data
+              .filter(m => m.sender_id !== currentUserId && !m.is_read)
+              .map(m => m.id);
+            if (unreadIds.length > 0) {
+              supabase
+                .from('chat_messages')
+                .update({ is_read: true })
+                .in('id', unreadIds)
+                .then(({ error: updateErr }) => {
+                  if (updateErr) console.error('Error marking messages as read in DB:', updateErr);
+                });
+            }
           }
         }
       } catch (err: any) {
@@ -448,12 +518,24 @@ export const ChatSystem: React.FC<ChatSystemProps> = ({
             const roomMsgs = prev[activeChatId] || [];
             if (roomMsgs.some(m => m.id === newMsg.id)) return prev;
 
-            // Avoid message redundancy/duplication with optimistic additions
-            const optimisticIndex = roomMsgs.findIndex(m => 
-              m.id.startsWith('msg-') && 
-              m.sender_id === newMsg.sender_id && 
-              m.message_text === newMsg.message_text
-            );
+            // Robust check to avoid message redundancy/duplication with optimistic (temp) additions.
+            // Match by sender_id and message text (with trimming to tolerate whitespace mutations).
+            const optimisticIndex = roomMsgs.findIndex(m => {
+              const isTempId = m.id && typeof m.id === 'string' && m.id.startsWith('msg-');
+              if (!isTempId) return false;
+              
+              const mSenderId = String(m.sender_id || '').toLowerCase();
+              const newSenderId = String(newMsg.sender_id || '').toLowerCase();
+              if (mSenderId !== newSenderId) return false;
+              
+              const mText = String(m.message_text || '').trim();
+              const newText = String(newMsg.message_text || '').trim();
+              if (mText === newText) return true;
+              
+              if (!mText && !newText && m.file_name === newMsg.file_name) return true;
+              
+              return false;
+            });
 
             const mapped = {
               id: newMsg.id,
@@ -464,9 +546,19 @@ export const ChatSystem: React.FC<ChatSystemProps> = ({
               file_url: newMsg.file_url,
               file_name: newMsg.file_name,
               file_type: newMsg.file_type,
-              is_read: true,
+              is_read: newMsg.sender_id !== currentUserId ? true : newMsg.is_read,
               created_at: newMsg.created_at
             };
+
+            if (newMsg.sender_id !== currentUserId && !newMsg.is_read) {
+              supabase
+                .from('chat_messages')
+                .update({ is_read: true })
+                .eq('id', newMsg.id)
+                .then(({ error: updateErr }) => {
+                  if (updateErr) console.error('Error marking live message as read:', updateErr);
+                });
+            }
 
             if (optimisticIndex !== -1) {
               const updated = [...roomMsgs];
@@ -1044,7 +1136,25 @@ export const ChatSystem: React.FC<ChatSystemProps> = ({
               return (
                 <div
                   key={room.id}
-                  onClick={() => setActiveChatId(room.id)}
+                  onClick={async () => {
+                    setActiveChatId(room.id);
+                    setUnreadCounts(prev => ({ ...prev, [room.id]: 0 }));
+                    
+                    // Mark as read in Supabase where is_read is false
+                    if (currentUserId && !room.isGroup) {
+                      try {
+                        const chatStudentId = isAdmin ? room.id : currentUserId;
+                        await supabase
+                          .from('chat_messages')
+                          .update({ is_read: true })
+                          .eq('student_id', chatStudentId)
+                          .eq('sender_id', room.id)
+                          .eq('is_read', false);
+                      } catch (err) {
+                        console.error('Error updating unread is_read=false state:', err);
+                      }
+                    }
+                  }}
                   className={`px-5 py-4 flex items-start gap-3.5 transition-all select-none cursor-pointer border-l-4 ${
                     isSelected
                       ? isDark 
@@ -1354,9 +1464,18 @@ export const ChatSystem: React.FC<ChatSystemProps> = ({
                 </button>
 
                 <div className="relative shrink-0">
-                  <div className={`w-10 h-10 rounded-2xl bg-gradient-to-tr ${activeRoomDetail.avatarColor} flex items-center justify-center text-white font-extrabold text-sm shadow`}>
-                    {activeRoomDetail.name.charAt(0)}
-                  </div>
+                  {activeRoomDetail.avatarUrl ? (
+                    <img
+                      src={activeRoomDetail.avatarUrl}
+                      alt={activeRoomDetail.name}
+                      className="w-10 h-10 rounded-2xl object-cover border border-white/10 shadow"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <div className={`w-10 h-10 rounded-2xl bg-gradient-to-tr ${activeRoomDetail.avatarColor} flex items-center justify-center text-white font-extrabold text-sm shadow`}>
+                      {activeRoomDetail.name.charAt(0)}
+                    </div>
+                  )}
                   <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-[#120a22]" />
                 </div>
 
@@ -1468,7 +1587,37 @@ export const ChatSystem: React.FC<ChatSystemProps> = ({
 
                         {/* Balloon body */}
                         <div 
+                          onClick={async () => {
+                            if (!isSelf && !msg.is_read) {
+                              try {
+                                // 1. Update in Local UI State instantly
+                                setMessagesDB(prev => {
+                                  const list = prev[activeChatId] || [];
+                                  const updated = list.map(m => m.id === msg.id ? { ...m, is_read: true } : m);
+                                  return { ...prev, [activeChatId]: updated };
+                                });
+
+                                // 2. Decrement the unreadCounts for the room
+                                setUnreadCounts(prev => {
+                                  const currentCount = prev[activeChatId] || 0;
+                                  return { ...prev, [activeChatId]: Math.max(0, currentCount - 1) };
+                                });
+
+                                // 3. Update Supabase (change is_read = false to is_read = true)
+                                await supabase
+                                  .from('chat_messages')
+                                  .update({ is_read: true })
+                                  .eq('id', msg.id);
+
+                                toast.success("Message marked as read!");
+                              } catch (err) {
+                                console.error('Error marking message read on bubble click:', err);
+                              }
+                            }
+                          }}
                           className={`relative max-w-[85%] sm:max-w-[70%] p-4 rounded-3xl group border transition-all ${
+                            !isSelf && !msg.is_read ? 'cursor-pointer hover:border-violet-500/40 hover:shadow-md' : ''
+                          } ${
                             isSelf
                               ? isDark
                                 ? 'bg-violet-600 border-violet-500 text-white rounded-tr-none shadow-[0_4px_12px_rgba(109,40,217,0.15)]'
@@ -1831,9 +1980,18 @@ export const ChatSystem: React.FC<ChatSystemProps> = ({
             <div className={`absolute top-0 inset-x-0 h-24 bg-gradient-to-tr ${activeRoomDetail.avatarColor} opacity-15 blur-lg`} />
             
             <div className="relative mt-4">
-              <div className={`w-20 h-20 rounded-3xl bg-gradient-to-tr ${activeRoomDetail.avatarColor} flex items-center justify-center text-white text-3xl font-black shadow-lg`}>
-                {activeRoomDetail.name.charAt(0)}
-              </div>
+              {activeRoomDetail.avatarUrl ? (
+                <img
+                  src={activeRoomDetail.avatarUrl}
+                  alt={activeRoomDetail.name}
+                  className="w-20 h-20 rounded-3xl object-cover border border-white/10 shadow-lg"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <div className={`w-20 h-20 rounded-3xl bg-gradient-to-tr ${activeRoomDetail.avatarColor} flex items-center justify-center text-white text-3xl font-black shadow-lg`}>
+                  {activeRoomDetail.name.charAt(0)}
+                </div>
+              )}
               <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-emerald-500 rounded-full border-4 border-[#150f28] flex items-center justify-center text-white">
                 <Check size={11} className="stroke-[3]" />
               </div>
