@@ -5,7 +5,7 @@ import { fileURLToPath } from "url";
 import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
 import webpush from "web-push";
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 
 dotenv.config();
 
@@ -45,7 +45,7 @@ function setupRoutes(app: Express) {
 
     try {
       const gClient = getGeminiClient();
-      const prompt = `You are an AI assistant for Wilson's Mastery Hub. Rewrite the user's daily accountability submission into a conversational, human-sounding WhatsApp post, including the tag '#WilsonMasteryHub #LearningInPublic'.
+      const prompt = `Analyze this daily accountability submission and generate a conversational, human-sounding WhatsApp post, including the tag '#WilsonMasteryHub #LearningInPublic'.
 
 Here is the daily accountability submission:
 - Task completed: ${taskCompleted || 'N/A'}
@@ -56,9 +56,42 @@ Here is the daily accountability submission:
       const response = await gClient.models.generateContent({
         model: "gemini-3.5-flash",
         contents: prompt,
+        config: {
+          systemInstruction: "Act as an AI WhatsApp Specialist. Rewrite daily accountability submissions into a conversational, human-sounding WhatsApp status update. Ensure your output is perfectly formatted JSON only, containing no HTML, DOCTYPE tags, markdown code blocks, or any other introductory text.",
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              post: {
+                type: Type.STRING,
+                description: "The generated WhatsApp post text."
+              }
+            },
+            required: ["post"]
+          }
+        }
       });
 
-      res.status(200).json({ post: response.text });
+      const responseText = response.text || "{}";
+      let parsedData;
+      try {
+        parsedData = JSON.parse(responseText.trim());
+      } catch (parseErr) {
+        // Fallback robust clean-up parsing
+        let cleaned = responseText.trim();
+        if (cleaned.startsWith("```json")) {
+          cleaned = cleaned.substring(7);
+        } else if (cleaned.startsWith("```")) {
+          cleaned = cleaned.substring(3);
+        }
+        if (cleaned.endsWith("```")) {
+          cleaned = cleaned.substring(0, cleaned.length - 3);
+        }
+        cleaned = cleaned.trim();
+        parsedData = JSON.parse(cleaned);
+      }
+
+      res.status(200).json({ post: parsedData.post || responseText });
     } catch (err: any) {
       console.error("WhatsApp AI Generation Error:", err);
       res.status(500).json({ error: err.message || "Failed to generate humanized WhatsApp post." });
@@ -83,8 +116,7 @@ Here is the daily accountability submission:
 - Date: ${sub.submitted_date}`;
       }).join("\n\n");
 
-      const prompt = `You are an AI expert for Wilson's Mastery Hub. Analyze the week's submissions and generate a professional, engaging LinkedIn post summarizing achievements and consistency based on the platform's focus.
- including the tag '#WilsonMasteryHub #LearningInPublic' @wilsonmasteryhub
+      const prompt = `Analyze the week's submissions and generate a professional, engaging LinkedIn post summarizing achievements and consistency based on the platform's focus, including the tag '#WilsonMasteryHub #LearningInPublic' @wilsonmasteryhub.
 
 Here is context about the week's review period: ${rangeText || "Focus Week"}
 Here are the daily submissions for this week:
@@ -93,9 +125,42 @@ ${submissionsList}`;
       const response = await gClient.models.generateContent({
         model: "gemini-3.5-flash",
         contents: prompt,
+        config: {
+          systemInstruction: "Act as an AI LinkedIn Weekly Specialist. Analyze all submissions and generate an inspiring, professional LinkedIn summary. Ensure your output is perfectly formatted JSON only, containing no HTML, DOCTYPE tags, markdown code blocks, or any other introductory text.",
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              post: {
+                type: Type.STRING,
+                description: "The generated LinkedIn weekly summary post."
+              }
+            },
+            required: ["post"]
+          }
+        }
       });
 
-      res.status(200).json({ post: response.text });
+      const responseText = response.text || "{}";
+      let parsedData;
+      try {
+        parsedData = JSON.parse(responseText.trim());
+      } catch (parseErr) {
+        // Fallback robust clean-up parsing
+        let cleaned = responseText.trim();
+        if (cleaned.startsWith("```json")) {
+          cleaned = cleaned.substring(7);
+        } else if (cleaned.startsWith("```")) {
+          cleaned = cleaned.substring(3);
+        }
+        if (cleaned.endsWith("```")) {
+          cleaned = cleaned.substring(0, cleaned.length - 3);
+        }
+        cleaned = cleaned.trim();
+        parsedData = JSON.parse(cleaned);
+      }
+
+      res.status(200).json({ post: parsedData.post || responseText });
     } catch (err: any) {
       console.error("LinkedIn AI Summary Error:", err);
       res.status(500).json({ error: err.message || "Failed to generate weekly LinkedIn summary." });
