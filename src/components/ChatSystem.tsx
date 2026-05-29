@@ -1092,7 +1092,7 @@ export const ChatSystem: React.FC<ChatSystemProps> = ({
         </div>
 
         {/* Compressed Standard Bottom Navigation Menu in Left Sidebar Footer */}
-        <div className={`px-4 py-2.5 border-t z-30 shrink-0 ${
+        <div className={`hidden md:block px-4 py-2.5 border-t z-30 shrink-0 ${
           isDark ? 'border-white/10 bg-slate-950/40' : 'border-slate-200 bg-slate-50'
         }`}>
           <div className="flex items-center justify-around gap-1 w-full max-w-full">

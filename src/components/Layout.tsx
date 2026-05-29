@@ -238,13 +238,13 @@ export const Layout: React.FC<LayoutProps> = ({
 
       <main className={
         activeTab === 'chat'
-          ? `w-full flex-1 flex flex-col md:max-w-5xl md:mx-auto md:px-4 md:py-8 pb-18 md:pb-12`
+          ? `w-full flex-1 flex flex-col md:max-w-5xl md:mx-auto md:px-4 md:py-8 pb-24 md:pb-12`
           : `max-w-5xl mx-auto px-4 w-full ${hideNav ? 'flex-1 flex flex-col justify-center py-12' : 'py-8 md:py-12 pb-24 md:pb-12'}`
       }>
         {children}
       </main>
 
-      {!hideNav && user && activeTab !== 'chat' && (
+      {!hideNav && user && (
         <BottomNav 
           activeTab={activeTab}
           onTabChange={onTabChange as any}
