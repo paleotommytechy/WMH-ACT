@@ -2,5 +2,5 @@
   "name": "WMH-ACT",
   "description": "Wilson Mastery Hub – Accountability & Consistency Tracker. A discipline system for enforcing consistency through visibility and proof of execution.",
   "requestFramePermissions": [],
-  "majorCapabilities": []
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

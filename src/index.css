@@ -1,1 +1,78 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
+
+@layer base {
+  body {
+    @apply transition-colors duration-300;
+  }
+}
+
+@theme {
+  --color-card-bg: var(--card-bg);
+  --color-card-border: var(--card-border);
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+:root {
+  --card-bg: rgba(255, 255, 255, 1);
+  --card-border: rgba(226, 232, 240, 1);
+}
+
+.dark {
+  --card-bg: rgba(255, 255, 255, 0.05);
+  --card-border: rgba(255, 255, 255, 0.1);
+  background-color: #130722;
+  color: #fff;
+}
+
+.light {
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+
+/* iOS Safe Areas */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+.min-h-screen-ios {
+  min-height: -webkit-fill-available;
+}
+
+/* Eliminate 300ms touch delay and optimize mobile UX accessibility */
+a, button, [role="button"], select, input, textarea {
+  touch-action: manipulation;
+}
+
+/* Markdown Support Styles */
+.markdown-body ul {
+  list-style-type: disc !important;
+  margin-left: 1.5rem !important;
+  margin-top: 0.5rem !important;
+  margin-bottom: 0.5rem !important;
+}
+.markdown-body ol {
+  list-style-type: decimal !important;
+  margin-left: 1.5rem !important;
+  margin-top: 0.5rem !important;
+  margin-bottom: 0.5rem !important;
+}
+.markdown-body li {
+  margin-bottom: 0.25rem !important;
+}
+.markdown-body p {
+  margin-bottom: 1rem !important;
+}
+.markdown-body p:last-child {
+  margin-bottom: 0 !important;
+}
+.markdown-body strong {
+  font-weight: 700 !important;
+}
+.markdown-body em {
+  font-style: italic !important;
+}
+
