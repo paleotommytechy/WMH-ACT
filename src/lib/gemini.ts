@@ -24,7 +24,7 @@ export async function generateSocialPosts(submission: {
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-3.5-flash",
       contents: `You are an expert social media manager. Generate one LinkedIn post and one WhatsApp status update based on this learning progress submission:
       - Task: ${submission.task_name}
       - Time Spent: ${submission.time_spent} minutes
