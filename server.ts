@@ -32,6 +32,31 @@ function getGeminiClient(): GoogleGenAI {
   return aiInstance;
 }
 
+async function generateContentWithFallback(gClient: GoogleGenAI, params: {
+  contents: any;
+  config: any;
+}) {
+  const models = ["gemini-3.5-flash", "gemini-2.5-flash", "gemini-1.5-flash-latest"];
+  let lastError: any = null;
+
+  for (const model of models) {
+    try {
+      console.log(`Attempting content generation using model: ${model}`);
+      const response = await gClient.models.generateContent({
+        model,
+        contents: params.contents,
+        config: params.config,
+      });
+      return response;
+    } catch (err: any) {
+      console.warn(`Model ${model} failed, trying next fallback:`, err.message || err);
+      lastError = err;
+    }
+  }
+
+  throw lastError || new Error("All configured Gemini models failed to generate content.");
+}
+
 function setupRoutes(app: Express) {
   app.use(express.json());
 
@@ -53,8 +78,7 @@ Here is the daily accountability submission:
 - Reflection: ${reflection || 'N/A'}
 - Date: ${submittedDate || 'N/A'}`;
 
-      const response = await gClient.models.generateContent({
-        model: "gemini-3.5-flash",
+      const response = await generateContentWithFallback(gClient, {
         contents: prompt,
         config: {
           systemInstruction: "Act as an AI WhatsApp Specialist. Rewrite daily accountability submissions into a conversational, human-sounding WhatsApp status update. Ensure your output is perfectly formatted JSON only, containing no HTML, DOCTYPE tags, markdown code blocks, or any other introductory text.",
@@ -122,8 +146,7 @@ Here is context about the week's review period: ${rangeText || "Focus Week"}
 Here are the daily submissions for this week:
 ${submissionsList}`;
 
-      const response = await gClient.models.generateContent({
-        model: "gemini-3.5-flash",
+      const response = await generateContentWithFallback(gClient, {
         contents: prompt,
         config: {
           systemInstruction: "Act as an AI LinkedIn Weekly Specialist. Analyze all submissions and generate an inspiring, professional LinkedIn summary. Ensure your output is perfectly formatted JSON only, containing no HTML, DOCTYPE tags, markdown code blocks, or any other introductory text.",
@@ -200,65 +223,93 @@ ${submissionsList}`;
   let vapidPrivate = process.env.VAPID_PRIVATE_KEY;
 
   async function getOrInitVapidKeys() {
+    // 1. Try to use process.env keys first if they exist and are valid URL-safe base64 keys
     if (vapidPublic && vapidPrivate) {
-      webpush.setVapidDetails(
-        "mailto:olusegunifetomiwa2000@gmail.com",
-        vapidPublic,
-        vapidPrivate
-      );
-      return { publicKey: vapidPublic, privateKey: vapidPrivate };
-    }
-
-    try {
-      const { data: configs, error } = await supabaseAdmin
-        .from('system_configs')
-        .select('*');
-
-      let pubKeyDb = configs?.find(c => c.key === 'vapid_public_key')?.value;
-      let privKeyDb = configs?.find(c => c.key === 'vapid_private_key')?.value;
-
-      if (pubKeyDb && privKeyDb) {
-        vapidPublic = pubKeyDb;
-        vapidPrivate = privKeyDb;
-      } else {
-        const keys = webpush.generateVAPIDKeys();
-        vapidPublic = keys.publicKey;
-        vapidPrivate = keys.privateKey;
-
-        await supabaseAdmin.from('system_configs').upsert([
-          { key: 'vapid_public_key', value: vapidPublic },
-          { key: 'vapid_private_key', value: vapidPrivate }
-        ]);
-      }
-
-      webpush.setVapidDetails(
-        "mailto:olusegunifetomiwa2000@gmail.com",
-        vapidPublic,
-        vapidPrivate
-      );
-    } catch (err) {
-      console.warn("Could not load stable VAPID keys, using dynamic ephemeral keys:", err);
-      if (!vapidPublic || !vapidPrivate) {
-        const keys = webpush.generateVAPIDKeys();
-        vapidPublic = keys.publicKey;
-        vapidPrivate = keys.privateKey;
+      try {
         webpush.setVapidDetails(
           "mailto:olusegunifetomiwa2000@gmail.com",
           vapidPublic,
           vapidPrivate
         );
+        return { publicKey: vapidPublic, privateKey: vapidPrivate };
+      } catch (e: any) {
+        console.warn("Process environment VAPID keys were defined but invalid. Clearing and falling back:", e.message);
+        vapidPublic = undefined;
+        vapidPrivate = undefined;
       }
     }
 
-    return { publicKey: vapidPublic, privateKey: vapidPrivate };
+    // 2. Try to load from database system_configs table
+    try {
+      const { data: configs, error } = await supabaseAdmin
+        .from('system_configs')
+        .select('*');
+
+      if (!error && configs) {
+        const pubKeyDb = configs.find(c => c.key === 'vapid_public_key')?.value;
+        const privKeyDb = configs.find(c => c.key === 'vapid_private_key')?.value;
+
+        if (pubKeyDb && privKeyDb) {
+          try {
+            webpush.setVapidDetails(
+              "mailto:olusegunifetomiwa2000@gmail.com",
+              pubKeyDb,
+              privKeyDb
+            );
+            vapidPublic = pubKeyDb;
+            vapidPrivate = privKeyDb;
+            return { publicKey: vapidPublic, privateKey: vapidPrivate };
+          } catch (validateErr: any) {
+            console.warn("Database VAPID keys were invalid or corrupted, recreating:", validateErr.message);
+          }
+        }
+      }
+    } catch (dbErr: any) {
+      console.warn("Could not query system_configs table:", dbErr.message);
+    }
+
+    // 3. Generate completely fresh valid keys and attempt to save to database
+    try {
+      const keys = webpush.generateVAPIDKeys();
+      vapidPublic = keys.publicKey;
+      vapidPrivate = keys.privateKey;
+
+      webpush.setVapidDetails(
+        "mailto:olusegunifetomiwa2000@gmail.com",
+        vapidPublic,
+        vapidPrivate
+      );
+
+      // Attempt DB storage of newly generated keys
+      try {
+        const { error: upsertErr } = await supabaseAdmin.from('system_configs').upsert([
+          { key: 'vapid_public_key', value: vapidPublic },
+          { key: 'vapid_private_key', value: vapidPrivate }
+        ]);
+        if (upsertErr) {
+          console.warn("Insert of VAPID configs failed:", upsertErr.message);
+        }
+      } catch (upsertErr: any) {
+        console.warn("Insert of VAPID configs failed:", upsertErr.message);
+      }
+
+      return { publicKey: vapidPublic, privateKey: vapidPrivate };
+    } catch (fallbackErr: any) {
+      console.error("Critical failure during ephemeral VAPID keys generation:", fallbackErr);
+      return { publicKey: "", privateKey: "" };
+    }
   }
 
   // Background Notification Dispatcher (Poller for Push and real-time PWA channels)
   let isPolling = false;
 
   async function startNotificationDispatcher() {
-    const keys = await getOrInitVapidKeys();
-    console.log("VAPID Keys active. Public Key exists:", !!keys.publicKey);
+    try {
+      const keys = await getOrInitVapidKeys();
+      console.log("VAPID Keys active. Public Key exists:", !!keys.publicKey);
+    } catch (dispatchErr: any) {
+      console.error("Failed to initialize VAPID keys for dispatcher:", dispatchErr);
+    }
 
     setInterval(async () => {
       if (isPolling) return;

@@ -262,23 +262,34 @@ const InviteForm: React.FC<{ theme: 'dark' | 'light' }> = ({ theme }) => {
         })
       });
 
+      const text = await response.text();
+      let result: any = null;
+      let isJson = false;
+
+      try {
+        result = JSON.parse(text);
+        isJson = true;
+      } catch (e) {
+        isJson = false;
+      }
+
       if (!response.ok) {
         let errMsg = 'Failed to create account';
-        try {
-          const text = await response.text();
-          if (text.startsWith("<!DOCTYPE") || text.slice(0, 100).includes("<html")) {
-            errMsg = `Server error (${response.status}): The server returned an HTML error page.`;
-          } else {
-            const errJson = JSON.parse(text);
-            errMsg = errJson.error || errMsg;
-          }
-        } catch (e) {
+        if (isJson && result?.error) {
+          errMsg = result.error;
+        } else if (text.startsWith("<!DOCTYPE") || text.slice(0, 100).includes("<html")) {
+          errMsg = `Server error (${response.status}): The server returned an HTML error page.`;
+        } else if (text.trim()) {
+          errMsg = `Server error (${response.status}): ${text.trim()}`;
+        } else {
           errMsg = `Server error (${response.status}): ${response.statusText || 'Unknown error'}`;
         }
         throw new Error(errMsg);
       }
 
-      const result = await response.json();
+      if (!isJson) {
+        throw new Error(`The server returned an unexpected response format: ${text.slice(0, 100)}`);
+      }
 
       toast.success('Account Created Successfully!');
       setCreated(true);
@@ -492,23 +503,34 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ theme = 'dark', 
         headers: { 'Content-Type': 'application/json' }
       });
 
+      const text = await response.text();
+      let data: any = null;
+      let isJson = false;
+
+      try {
+        data = JSON.parse(text);
+        isJson = true;
+      } catch (e) {
+        isJson = false;
+      }
+
       if (!response.ok) {
         let errMsg = 'Failed identity storage initialization';
-        try {
-          const text = await response.text();
-          if (text.startsWith("<!DOCTYPE") || text.slice(0, 100).includes("<html")) {
-            errMsg = `Server error (${response.status}): The server returned an HTML error page.`;
-          } else {
-            const errJson = JSON.parse(text);
-            errMsg = errJson.error || errMsg;
-          }
-        } catch (e) {
+        if (isJson && data?.error) {
+          errMsg = data.error;
+        } else if (text.startsWith("<!DOCTYPE") || text.slice(0, 100).includes("<html")) {
+          errMsg = `Server error (${response.status}): The server returned an HTML error page.`;
+        } else if (text.trim()) {
+          errMsg = `Server error (${response.status}): ${text.trim()}`;
+        } else {
           errMsg = `Server error (${response.status}): ${response.statusText || 'Unknown error'}`;
         }
         throw new Error(errMsg);
       }
 
-      const data = await response.json();
+      if (!isJson) {
+        throw new Error(`The server returned an unexpected response format: ${text.slice(0, 100)}`);
+      }
       if (data.success) {
         toast.success('Identity Storage (Avatars) Initialized!');
       } else {
