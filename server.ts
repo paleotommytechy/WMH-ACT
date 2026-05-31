@@ -9,12 +9,15 @@ import { GoogleGenAI, Type } from "@google/genai";
 
 dotenv.config();
 
+console.log("GEMINI_API_KEY exists:", !!process.env.GEMINI_API_KEY);
+
 // Define __dirname for ESM
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 let aiInstance: GoogleGenAI | null = null;
 function getGeminiClient(): GoogleGenAI {
+  console.log("GEMINI_API_KEY exists:", !!process.env.GEMINI_API_KEY);
   if (!aiInstance) {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {

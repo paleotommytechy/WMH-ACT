@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '@/src/lib/supabase';
 import { Loader2, Send, CheckCircle2, Link as LinkIcon, Image as ImageIcon, Save } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { generateSocialPosts } from '@/src/lib/gemini';
+import { generateSocialPosts } from '@/src/lib/openai';
 import confetti from 'canvas-confetti';
 import { format } from 'date-fns';
 import { toast } from 'react-hot-toast';
