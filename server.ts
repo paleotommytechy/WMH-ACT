@@ -5,50 +5,54 @@ import { fileURLToPath } from "url";
 import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
 import webpush from "web-push";
-import { GoogleGenAI, Type } from "@google/genai";
+import OpenAI from "openai";
 
 dotenv.config();
 
-console.log("GEMINI_API_KEY exists:", !!process.env.GEMINI_API_KEY);
+console.log("OPENAI_API_KEY exists:", !!process.env.OPENAI_API_KEY);
 
 // Define __dirname for ESM
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-let aiInstance: GoogleGenAI | null = null;
-function getGeminiClient(): GoogleGenAI {
-  console.log("GEMINI_API_KEY exists:", !!process.env.GEMINI_API_KEY);
+let aiInstance: OpenAI | null = null;
+function getOpenAIClient(): OpenAI {
+  console.log("OPENAI_API_KEY exists:", !!process.env.OPENAI_API_KEY);
   if (!aiInstance) {
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
-      throw new Error("GEMINI_API_KEY environment variable is required but missing. Please configure it in your Settings > Secrets.");
+      throw new Error("OPENAI_API_KEY environment variable is required but missing. Please configure it in your Settings > Secrets.");
     }
-    aiInstance = new GoogleGenAI({
+    aiInstance = new OpenAI({
       apiKey,
-      httpOptions: {
-        headers: {
-          'User-Agent': 'aistudio-build',
-        }
-      }
     });
   }
   return aiInstance;
 }
 
-async function generateContentWithFallback(gClient: GoogleGenAI, params: {
-  contents: any;
-  config: any;
+async function generateContentWithFallback(client: OpenAI, params: {
+  prompt: string;
+  systemInstruction: string;
 }) {
-  const models = ["gemini-3.5-flash", "gemini-2.5-flash", "gemini-1.5-flash-latest"];
+  const models = ["gpt-4o-mini", "gpt-4-turbo"];
   let lastError: any = null;
 
   for (const model of models) {
     try {
       console.log(`Attempting content generation using model: ${model}`);
-      const response = await gClient.models.generateContent({
+      const response = await client.chat.completions.create({
         model,
-        contents: params.contents,
-        config: params.config,
+        messages: [
+          {
+            role: "system",
+            content: params.systemInstruction,
+          },
+          {
+            role: "user",
+            content: params.prompt,
+          },
+        ],
+        response_format: { type: "json_object" },
       });
       return response;
     } catch (err: any) {
@@ -57,7 +61,7 @@ async function generateContentWithFallback(gClient: GoogleGenAI, params: {
     }
   }
 
-  throw lastError || new Error("All configured Gemini models failed to generate content.");
+  throw lastError || new Error("All configured OpenAI models failed to generate content.");
 }
 
 function setupRoutes(app: Express) {
@@ -72,34 +76,23 @@ function setupRoutes(app: Express) {
     }
 
     try {
-      const gClient = getGeminiClient();
+      const client = getOpenAIClient();
       const prompt = `Analyze this daily accountability submission and generate a conversational, human-sounding WhatsApp post, including the tag '#WilsonMasteryHub #LearningInPublic'.
 
 Here is the daily accountability submission:
 - Task completed: ${taskCompleted || 'N/A'}
 - Time Spent: ${timeSpent || 0} minutes
 - Reflection: ${reflection || 'N/A'}
-- Date: ${submittedDate || 'N/A'}`;
+- Date: ${submittedDate || 'N/A'}
 
-      const response = await generateContentWithFallback(gClient, {
-        contents: prompt,
-        config: {
-          systemInstruction: "Act as an AI WhatsApp Specialist. Rewrite daily accountability submissions into a conversational, human-sounding WhatsApp status update. Ensure your output is perfectly formatted JSON only, containing no HTML, DOCTYPE tags, markdown code blocks, or any other introductory text.",
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              post: {
-                type: Type.STRING,
-                description: "The generated WhatsApp post text."
-              }
-            },
-            required: ["post"]
-          }
-        }
+Return a JSON object with a "post" field containing the generated WhatsApp post.`;
+
+      const response = await generateContentWithFallback(client, {
+        prompt,
+        systemInstruction: "Act as an AI WhatsApp Specialist. Rewrite daily accountability submissions into a conversational, human-sounding WhatsApp status update. Ensure your output is perfectly formatted JSON only, containing no HTML, DOCTYPE tags, markdown code blocks, or any other introductory text. Return JSON with a 'post' field."
       });
 
-      const responseText = response.text || "{}";
+      const responseText = response.choices[0]?.message?.content || "{}";
       let parsedData;
       try {
         parsedData = JSON.parse(responseText.trim());
@@ -133,7 +126,7 @@ Here is the daily accountability submission:
     }
 
     try {
-      const gClient = getGeminiClient();
+      const client = getOpenAIClient();
       
       const submissionsList = submissions.map((sub: any, i: number) => {
         return `Submission ${i + 1}:
@@ -147,27 +140,16 @@ Here is the daily accountability submission:
 
 Here is context about the week's review period: ${rangeText || "Focus Week"}
 Here are the daily submissions for this week:
-${submissionsList}`;
+${submissionsList}
 
-      const response = await generateContentWithFallback(gClient, {
-        contents: prompt,
-        config: {
-          systemInstruction: "Act as an AI LinkedIn Weekly Specialist. Analyze all submissions and generate an inspiring, professional LinkedIn summary. Ensure your output is perfectly formatted JSON only, containing no HTML, DOCTYPE tags, markdown code blocks, or any other introductory text.",
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              post: {
-                type: Type.STRING,
-                description: "The generated LinkedIn weekly summary post."
-              }
-            },
-            required: ["post"]
-          }
-        }
+Return a JSON object with a "post" field containing the generated LinkedIn post.`;
+
+      const response = await generateContentWithFallback(client, {
+        prompt,
+        systemInstruction: "Act as an AI LinkedIn Weekly Specialist. Analyze all submissions and generate an inspiring, professional LinkedIn summary. Ensure your output is perfectly formatted JSON only, containing no HTML, DOCTYPE tags, markdown code blocks, or any other introductory text. Return JSON with a 'post' field."
       });
 
-      const responseText = response.text || "{}";
+      const responseText = response.choices[0]?.message?.content || "{}";
       let parsedData;
       try {
         parsedData = JSON.parse(responseText.trim());
